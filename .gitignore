@@ -1,0 +1,57 @@
+# Binary Executables
+# ------------------
+# Compiled binaries (usually named after the folder or specific names)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+# If you name your binary based on the project name, add it here:
+# /my-app-name
+
+# Dependency Management
+# ---------------------
+# Note: It is standard practice to include go.mod and go.sum in git.
+# Vendor directory is optional (only if you use 'go mod vendor').
+# vendor/
+
+# Test and Coverage
+# -----------------
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Environment & Secrets
+# ---------------------
+.env
+*.env
+.env.local
+.env.*.local
+# Specifically for your project structure
+configs/*.env
+
+# IDE / Editor Files
+# ------------------
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains (GoLand / IntelliJ)
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# System Files
+# ------------
+.DS_Store
+Thumbs.db
+
+# Optional: Tools & Logs
+# ----------------------
+*.log
