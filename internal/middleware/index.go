@@ -26,4 +26,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add input sanitizer middleware to prevent SQL injection, XSS, and MongoDB injection
 	// This ensures that all incoming requests are sanitized
 	router.Use(GlobalSanitizer())
+
+	// Add error handler middleware for 404 and 500 errors
+	// This provides consistent error responses
+	router.Use(Error404n500Handler())
 }
