@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/joho/godotenv"
@@ -28,6 +29,12 @@ type Config struct {
 	ReadTimeoutSeconds  int
 	WriteTimeoutSeconds int
 	IdleTimeoutSeconds  int
+
+	// Security settings
+	JWTSecret      string
+	JWTExpiryHours int
+	TrustedProxies []string
+	AllowedOrigins []string
 }
 
 var (
@@ -101,6 +108,51 @@ func loadConfig() (*Config, error) {
 		}
 	}
 
+	// Load JWT settings
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" && environment == "production" {
+		return nil, fmt.Errorf("JWT_SECRET must be set in production")
+	}
+	if jwtSecret == "" {
+		jwtSecret = "default-jwt-secret-for-dev-only" // Default for non-production
+	}
+
+	jwtExpiryStr := os.Getenv("JWT_EXPIRY_HOURS")
+	jwtExpiryHours := 24 // Default to 24 hours
+	if jwtExpiryStr != "" {
+		jwtExpiryHours, err = strconv.Atoi(jwtExpiryStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JWT_EXPIRY_HOURS value: %s. Must be a number", jwtExpiryStr)
+		}
+	}
+
+	// Load CORS settings
+	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
+	var allowedOrigins []string
+	if allowedOriginsStr == "" {
+		if environment == "production" {
+			return nil, fmt.Errorf("ALLOWED_ORIGINS must be set in production")
+		}
+		// Default for non-production
+		allowedOrigins = []string{
+			"http://localhost:3000",
+			"http://localhost:8000",
+			"http://localhost:8080",
+			"http://127.0.0.1:3000",
+			"http://127.0.0.1:8000",
+			"http://127.0.0.1:8080",
+		}
+	} else {
+		allowedOrigins = strings.Split(allowedOriginsStr, ",")
+	}
+
+	// Load trusted proxies
+	trustedProxiesStr := os.Getenv("TRUSTED_PROXIES")
+	var trustedProxies []string
+	if trustedProxiesStr != "" {
+		trustedProxies = strings.Split(trustedProxiesStr, ",")
+	}
+
 	return &Config{
 		// Core settings
 		GinMode: ginMode,
@@ -112,6 +164,12 @@ func loadConfig() (*Config, error) {
 		ReadTimeoutSeconds:  readTimeout,
 		WriteTimeoutSeconds: writeTimeout,
 		IdleTimeoutSeconds:  idleTimeout,
+
+		// Security settings
+		JWTSecret:      jwtSecret,
+		JWTExpiryHours: jwtExpiryHours,
+		TrustedProxies: trustedProxies,
+		AllowedOrigins: allowedOrigins,
 	}, nil
 }
 

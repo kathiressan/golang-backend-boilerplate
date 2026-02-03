@@ -18,4 +18,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add recovery middleware to handle panics
 	// This prevents the server from crashing on unhandled errors
 	router.Use(gin.Recovery())
+
+	// Add CORS headers to allow cross-origin requests
+	// This is necessary for web applications making API calls
+	router.Use(CORSMiddleware())
 }
