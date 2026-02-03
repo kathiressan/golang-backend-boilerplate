@@ -30,4 +30,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add error handler middleware for 404 and 500 errors
 	// This provides consistent error responses
 	router.Use(Error404n500Handler())
+
+	// Add token handler middleware for external API authentication
+	// This validates tokens from external services
+	router.Use(ExtRequesterHandler())
 }
