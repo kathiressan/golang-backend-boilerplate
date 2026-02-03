@@ -14,4 +14,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add our custom structured logger
 	// This logs request details and response information
 	router.Use(LoggerMiddleware())
+
+	// Add recovery middleware to handle panics
+	// This prevents the server from crashing on unhandled errors
+	router.Use(gin.Recovery())
 }
