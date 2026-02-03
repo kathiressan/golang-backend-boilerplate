@@ -34,4 +34,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add token handler middleware for external API authentication
 	// This validates tokens from external services
 	router.Use(ExtRequesterHandler())
+
+	// Add path handler middleware for route parsing
+	// This normalizes and parses request paths
+	router.Use(PathHandler())
 }

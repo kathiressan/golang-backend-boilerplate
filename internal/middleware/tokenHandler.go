@@ -2,7 +2,7 @@ package middleware
 
 import (
 	config "ovmsa-be/configs"
-	"ovmsa-be/pkg/cryptography"
+	cryptographyHelper "ovmsa-be/pkg/cryptography"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -71,7 +71,7 @@ func ExtRequesterHandler() gin.HandlerFunc {
 
 		// Verify the token's cryptographic signature
 		// Generate the expected HMAC using the requester's secret key
-		expectedCode := cryptography.Base64HMAC(tokenData, requester.SecretKey)
+		expectedCode := cryptographyHelper.Base64HMAC(tokenData, requester.SecretKey)
 		if expectedCode != encodedData {
 			// If the signature doesn't match, mark as invalid
 			c.Set("tokenError", "invalid requester (wrong encoding)")

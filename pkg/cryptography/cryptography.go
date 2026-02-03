@@ -1,6 +1,6 @@
-// Package cryptography provides cryptographic utilities for the application
+// Package cryptographyHelper provides cryptographic utilities for the application
 // This package implements secure hashing and encoding functions
-package cryptography
+package cryptographyHelper
 
 import (
 	"crypto/hmac"
