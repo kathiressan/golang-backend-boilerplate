@@ -10,4 +10,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Generate unique request IDs for each request
 	// This helps track requests through the system
 	router.Use(requestid.New())
+
+	// Add our custom structured logger
+	// This logs request details and response information
+	router.Use(LoggerMiddleware())
 }
