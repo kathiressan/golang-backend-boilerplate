@@ -22,4 +22,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add CORS headers to allow cross-origin requests
 	// This is necessary for web applications making API calls
 	router.Use(CORSMiddleware())
+
+	// Add input sanitizer middleware to prevent SQL injection, XSS, and MongoDB injection
+	// This ensures that all incoming requests are sanitized
+	router.Use(GlobalSanitizer())
 }
