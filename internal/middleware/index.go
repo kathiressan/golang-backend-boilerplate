@@ -23,9 +23,9 @@ func SetupMiddleware(router *gin.Engine) {
 	// This is necessary for web applications making API calls
 	router.Use(CORSMiddleware())
 
-	// Add input sanitizer middleware to prevent SQL injection, XSS, and MongoDB injection
-	// This ensures that all incoming requests are sanitized
-	router.Use(GlobalSanitizer())
+	// Add input sanitizer middleware to prevent XSS attacks
+	// This ensures that all incoming request parameters are sanitized
+	router.Use(XSSSanitizer())
 
 	// Add error handler middleware for 404 and 500 errors
 	// This provides consistent error responses
@@ -37,5 +37,5 @@ func SetupMiddleware(router *gin.Engine) {
 
 	// Add path handler middleware for route parsing
 	// This normalizes and parses request paths
-	router.Use(PathHandler())
+	// router.Use(PathHandler())
 }

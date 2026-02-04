@@ -9,7 +9,9 @@ import (
 
 var strictPolicy = bluemonday.StrictPolicy()
 
-func GlobalSanitizer() gin.HandlerFunc {
+// XSSSanitizer is a middleware that sanitizes path and query parameters to prevent XSS attacks.
+// It uses the bluemonday library to strip potentially dangerous HTML/Script tags.
+func XSSSanitizer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Content-Type Check (Simple)
 		if (c.Request.Method == "POST" || c.Request.Method == "PUT") &&
