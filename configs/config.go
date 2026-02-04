@@ -13,19 +13,19 @@ import (
 type Environment string
 
 const (
-    EnvDevelopment Environment = "development"
-    EnvStaging     Environment = "staging"
-    EnvProduction  Environment = "production"
+	EnvDevelopment Environment = "development"
+	EnvStaging     Environment = "staging"
+	EnvProduction  Environment = "production"
 )
 
 type Config struct {
 	// Core settings
-	GinMode     string
-	Port        int
-	Environment Environment
-	TestMode    bool
-	AppName     string
-	ProjectRoot string
+	GinMode      string
+	Port         int
+	Environment  Environment
+	TestMode     bool
+	AppName      string
+	ProjectRoot  string
 	PlatformName string
 
 	// Timeouts
@@ -174,12 +174,12 @@ func loadConfig() (*Config, error) {
 
 	return &Config{
 		// Core settings
-		GinMode: ginMode,
-		Port: port,
-		Environment: Environment(environment),
-		TestMode: testMode,
-		AppName: appName,
-		ProjectRoot: projectRoot,
+		GinMode:      ginMode,
+		Port:         port,
+		Environment:  Environment(environment),
+		TestMode:     testMode,
+		AppName:      appName,
+		ProjectRoot:  projectRoot,
 		PlatformName: platformName,
 
 		// Timeouts

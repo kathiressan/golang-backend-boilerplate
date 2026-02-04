@@ -38,21 +38,21 @@ func LoggerMiddleware() gin.HandlerFunc {
 		latency := time.Since(start)
 
 		// Collect additional request information
-		clientIP := c.ClientIP()        // Client's IP address
-		statusCode := c.Writer.Status() // HTTP status code
-		userAgent := c.Request.UserAgent() // Client's browser/application
+		clientIP := c.ClientIP()                                       // Client's IP address
+		statusCode := c.Writer.Status()                                // HTTP status code
+		userAgent := c.Request.UserAgent()                             // Client's browser/application
 		errorMessage := c.Errors.ByType(gin.ErrorTypePrivate).String() // Any errors that occurred
 
 		// Log the completed request with structured data
 		// This makes it easier to search and analyze logs
 		logger.Info("Request completed",
-			"requestID", requestID,    // Unique identifier for this request
-			"clientIP", clientIP,      // Client's IP address
-			"method", method,          // HTTP method (GET, POST, etc.)
-			"path", path,              // Requested URL path
-			"status", statusCode,      // HTTP status code
-			"latency", latency,        // Time taken to process the request
-			"userAgent", userAgent,    // Client's browser/application
+			"requestID", requestID, // Unique identifier for this request
+			"clientIP", clientIP, // Client's IP address
+			"method", method, // HTTP method (GET, POST, etc.)
+			"path", path, // Requested URL path
+			"status", statusCode, // HTTP status code
+			"latency", latency, // Time taken to process the request
+			"userAgent", userAgent, // Client's browser/application
 			"errorCount", len(c.Errors), // Number of errors that occurred
 		)
 

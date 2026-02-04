@@ -55,15 +55,15 @@ func CORSMiddleware() gin.HandlerFunc {
 		}
 
 		// Set CORS headers
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Allow credentials (cookies, etc.)
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")                                                                                                                    // Allow credentials (cookies, etc.)
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With") // Allowed request headers
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH") // Allowed HTTP methods
-		c.Writer.Header().Set("Access-Control-Max-Age", "86400") // Cache preflight results for 24 hours
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")                                                                                      // Allowed HTTP methods
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")                                                                                                                             // Cache preflight results for 24 hours
 
 		// Add security headers to protect against common web vulnerabilities
-		c.Writer.Header().Set("X-Content-Type-Options", "nosniff") // Prevent MIME type sniffing
-		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block") // Enable XSS protection
-		c.Writer.Header().Set("X-Frame-Options", "DENY") // Prevent clickjacking
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")                                // Prevent MIME type sniffing
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")                                // Enable XSS protection
+		c.Writer.Header().Set("X-Frame-Options", "DENY")                                          // Prevent clickjacking
 		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains") // Enforce HTTPS
 
 		// Handle preflight requests (OPTIONS)

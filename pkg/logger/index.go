@@ -237,14 +237,14 @@ func Info(msg string, fields ...any) {
 
 // Infof logs a templated message
 func Infof(template string, args ...any) {
-    msg := fmt.Sprintf(template, args...)
-    
-    // Maintain your existing color logic
-    if !config.IsProduction() {
-        msg = fmt.Sprintf("%s%s%s%s", colorWhite, colorBold, msg, colorReset)
-    }
-    
-    sugar.Info(msg)
+	msg := fmt.Sprintf(template, args...)
+
+	// Maintain your existing color logic
+	if !config.IsProduction() {
+		msg = fmt.Sprintf("%s%s%s%s", colorWhite, colorBold, msg, colorReset)
+	}
+
+	sugar.Info(msg)
 }
 
 // Warn logs at warn level

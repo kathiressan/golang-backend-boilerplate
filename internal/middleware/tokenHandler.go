@@ -56,9 +56,9 @@ func ExtRequesterHandler() gin.HandlerFunc {
 		}
 
 		// Parse token components
-		requesterID := tokenParts[0]  // The ID of the entity making the request
-		tokenData := tokenParts[1]    // The data being signed
-		encodedData := tokenParts[2]  // The HMAC signature of the token data
+		requesterID := tokenParts[0] // The ID of the entity making the request
+		tokenData := tokenParts[1]   // The data being signed
+		encodedData := tokenParts[2] // The HMAC signature of the token data
 
 		// Check if the requester exists in our list of valid requesters
 		requester, exists := config.ValidRequesters[requesterID]

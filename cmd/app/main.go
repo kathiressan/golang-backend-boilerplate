@@ -20,7 +20,7 @@ func main() {
 	// defer statements run when the function exits
 	defer logger.Sync()
 
-	logger.Debug("Starting application", 
+	logger.Debug("Starting application",
 		"environment", cfg.Environment,
 		"port", cfg.Port,
 		"ginMode", cfg.GinMode,

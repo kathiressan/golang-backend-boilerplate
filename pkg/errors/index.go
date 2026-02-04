@@ -198,7 +198,7 @@ func Is(err error, errorType string) bool {
 
 // AsAppError tries to convert a standard error to an AppError
 // This function is useful when you need to access AppError-specific fields
-// Example: 
+// Example:
 // if appErr, ok := errors.AsAppError(err); ok {
 //     statusCode = appErr.StatusCode
 // }

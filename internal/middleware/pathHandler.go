@@ -21,11 +21,11 @@ func PathHandler() gin.HandlerFunc {
 		// Parse the request path using the path helper
 		// This normalizes the path and handles any special cases
 		parsedPath := pathHelper.ParseRequestPath(c.Request.URL.Path)
-		
+
 		// Store the parsed path in the request context
 		// This makes it available to all subsequent handlers in the chain
 		c.Set("parsedPath", parsedPath)
-		
+
 		// Continue to the next handler in the chain
 		c.Next()
 	}
