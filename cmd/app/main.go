@@ -5,6 +5,7 @@ import (
 	"net/http"
 	config "ovmsa-be/configs"
 	"ovmsa-be/pkg/logger"
+	validatorHelper "ovmsa-be/pkg/validator"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,6 +36,10 @@ func main() {
 	// Create a new router without default middleware
 	// We'll add our own middleware stack for better control
 	router := gin.New()
+
+	// Initialize the validator
+	// This sets up validation rules for request data
+	validatorHelper.InitValidator()
 
 	router.GET("/ping", func(c *gin.Context) {
 		// Add request ID to response for traceability
