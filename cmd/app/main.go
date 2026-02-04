@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	config "ovmsa-be/configs"
+	"ovmsa-be/internal/middleware"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +22,6 @@ func main() {
 	logger.Initialize(cfg.Environment)
 
 	// Ensure logs are flushed on shutdown
-	// defer statements run when the function exits
 	defer logger.Sync()
 
 	logger.Debug("Starting application",
@@ -27,23 +31,19 @@ func main() {
 	)
 
 	// Set Gin mode based on configuration
-	// Different modes have different behaviors:
-	// - debug: verbose logging, error stack traces
-	// - release: optimized for production, minimal logging
-	// - test: for testing purpose
 	gin.SetMode(cfg.GinMode)
 
 	// Create a new router without default middleware
-	// We'll add our own middleware stack for better control
 	router := gin.New()
 
 	// Initialize the validator
-	// This sets up validation rules for request data
 	validatorHelper.InitValidator()
+
+	// Setup application middleware
+	middleware.SetupMiddleware(router)
 
 	router.GET("/ping", func(c *gin.Context) {
 		// Add request ID to response for traceability
-		// This helps correlate logs with specific requests
 		requestID := c.GetString("X-Request-ID")
 
 		c.JSON(http.StatusOK, gin.H{
@@ -53,7 +53,6 @@ func main() {
 	})
 
 	// Create a server address string based on environment
-	// In production, bind to all interfaces; in development, only localhost
 	var addr string
 	if cfg.Environment == "production" {
 		addr = fmt.Sprintf(":%d", cfg.Port)
@@ -62,10 +61,6 @@ func main() {
 	}
 
 	// Create a server with timeouts
-	// Proper timeout settings are crucial for security and resource management:
-	// - ReadTimeout: maximum time to read the entire request
-	// - WriteTimeout: maximum time to write the response
-	// - IdleTimeout: maximum time to wait for the next request when keep-alives are enabled
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
@@ -75,19 +70,33 @@ func main() {
 	}
 
 	// Start server in a goroutine so it doesn't block
-	// A goroutine is a lightweight thread managed by the Go runtime
 	go func() {
-		logger.Infof("Server starting on port %d", 8000)
+		logger.Infof("Server starting on %s", addr)
 
 		// ListenAndServe starts the HTTP server
-		// It will block until the server is shut down
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Failed to start server", "error", err)
 		}
 	}()
 
-	// Wait indefinitely
-	// This keeps the main goroutine alive
-	// Graceful shutdown is handled by signal handlers in middleware
-	select {}
+	// Wait for interrupt signal to gracefully shutdown the server with
+	// a timeout of 5 seconds.
+	quit := make(chan os.Signal, 1)
+	// kill (no parameter) sends syscall.SIGTERM
+	// kill -2 is syscall.SIGINT
+	// kill -9 is syscall.SIGKILL but can't be caught, so no need to add it
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("Shutting down server...")
+
+	// The context is used to inform the server it has 5 seconds to finish
+	// the request it is currently handling
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatal("Server forced to shutdown", "error", err)
+	}
+
+	logger.Info("Server exiting")
 }

@@ -1,12 +1,6 @@
 package middleware
 
 import (
-	"os"
-	"os/signal"
-	"ovmsa-be/pkg/logger"
-	"syscall"
-	"time"
-
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 )
@@ -44,40 +38,4 @@ func SetupMiddleware(router *gin.Engine) {
 	// Add path handler middleware for route parsing
 	// This normalizes and parses request paths
 	router.Use(PathHandler())
-
-	// Set up graceful shutdown handling
-	// This ensures clean shutdown when the server is stopped
-	setupGracefulShutdown()
-}
-
-// setupGracefulShutdown configures the application to handle shutdown signals gracefully
-// This function:
-// 1. Listens for shutdown signals (SIGINT, SIGTERM, SIGQUIT)
-// 2. Waits for ongoing requests to complete
-// 3. Flushes any buffered logs
-// 4. Exits cleanly
-func setupGracefulShutdown() {
-	// Create a channel to receive OS signals
-	c := make(chan os.Signal, 1)
-
-	// Register for interrupt and termination signals
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-
-	// Start a goroutine to handle shutdown
-	go func() {
-		// Wait for a shutdown signal
-		<-c
-		logger.Info("Shutdown signal received, beginning graceful shutdown")
-
-		// Allow ongoing requests to finish
-		// This gives time for existing requests to complete
-		time.Sleep(5 * time.Second)
-
-		// Flush any buffered logs to ensure all logs are written
-		logger.Sync()
-
-		// Log completion and exit
-		logger.Info("Graceful shutdown completed")
-		os.Exit(0)
-	}()
 }
