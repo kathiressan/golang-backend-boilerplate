@@ -3,13 +3,16 @@
 package pathHelper
 
 import (
+	config "ovmsa-be/configs"
 	"slices"
 	"strings"
 )
 
+var cfg = config.GetConfig()
+
 // Platforms represents valid platforms in the API
 // These are the supported platforms that can make requests to the API
-var Platforms = []string{"ovmsa", "web", "mobile"}
+var Platforms = []string{cfg.PlatformName, "web", "mobile"}
 
 // ValidActions represents valid HTTP actions/methods
 // These are the standard HTTP methods supported by the API
@@ -29,7 +32,7 @@ var ActionMap = map[string]string{
 // Fields:
 // - FullPath: The complete original path
 // - APIVersion: The version of the API being used
-// - Platform: The platform making the request (ovmsa, web, mobile)
+// - Platform: The platform making the request (cfg.PlatformName, web, mobile)
 // - MainRoute: The main route segment of the path
 // - SubRoutes: Detailed information about sub-routes
 // - FullSubRoute: The complete sub-route path
@@ -71,7 +74,7 @@ type SubRoutes struct {
 // ParseRequestPath parses a request path into its components
 // This function:
 // 1. Normalizes the path by removing trailing slashes
-// 2. Identifies the platform (ovmsa, web, mobile)
+// 2. Identifies the platform (cfg.PlatformName, web, mobile)
 // 3. Extracts the main route and sub-routes
 // 4. Determines the API version and action
 // 5. Returns a ParsedPath struct with all components
@@ -98,17 +101,17 @@ func ParseRequestPath(path string) ParsedPath {
 	}
 
 	// Get platform
-	platform := "ovmsa"
+	platform := cfg.PlatformName
 	if start+1 < nParts {
 		platform = pathParts[start+1]
 		if !slices.Contains(Platforms, platform) {
-			platform = "ovmsa"
+			platform = cfg.PlatformName
 		}
 	}
 
 	// Get main route
 	mainRoute := ""
-	if platform == "ovmsa" {
+	if platform == cfg.PlatformName {
 		if start+1 < nParts {
 			mainRoute = pathParts[start+1]
 		}

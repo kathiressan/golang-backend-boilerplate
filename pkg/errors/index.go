@@ -16,6 +16,8 @@ import (
 	"strings"
 )
 
+var cfg = config.GetConfig()
+
 // AppError is the custom error type used throughout the application
 // This struct contains all the information needed for both
 // internal error handling and external error responses
@@ -83,7 +85,7 @@ func callers() string {
 		}
 		file, line := fn.FileLine(pc)
 		// Only include application files (exclude standard library and third-party packages)
-		if strings.Contains(file, "golang-backend-boilerplate") {
+		if strings.Contains(file, cfg.ProjectRoot) {
 			fmt.Fprintf(&builder, "%s:%d\n", file, line)
 		}
 	}
