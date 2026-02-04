@@ -24,6 +24,9 @@ type Config struct {
 	Port        int
 	Environment Environment
 	TestMode    bool
+	AppName     string
+	ProjectRoot string
+	PlatformName string
 
 	// Timeouts
 	ReadTimeoutSeconds  int
@@ -79,6 +82,22 @@ func loadConfig() (*Config, error) {
 
 	// TEST_MODE
 	testMode := os.Getenv("TEST_MODE") == "true"
+
+	// APP_NAME
+	appName := os.Getenv("APP_NAME")
+	if appName == "" {
+		return nil, fmt.Errorf("APP_NAME cannot be empty")
+	}
+
+	projectRoot := os.Getenv("PROJECT_ROOT")
+	if projectRoot == "" {
+		return nil, fmt.Errorf("PROJECT_ROOT cannot be empty")
+	}
+
+	platformName := os.Getenv("PLATFORM_NAME")
+	if platformName == "" {
+		return nil, fmt.Errorf("PLATFORM_NAME cannot be empty")
+	}
 
 	// Load timeout settings
 	readTimeoutStr := os.Getenv("READ_TIMEOUT_SECONDS")
@@ -159,6 +178,9 @@ func loadConfig() (*Config, error) {
 		Port: port,
 		Environment: Environment(environment),
 		TestMode: testMode,
+		AppName: appName,
+		ProjectRoot: projectRoot,
+		PlatformName: platformName,
 
 		// Timeouts
 		ReadTimeoutSeconds:  readTimeout,
