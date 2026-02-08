@@ -38,9 +38,26 @@ var Migrations = []MigrationStep{
 			return nil
 		},
 	},
+	{
+		Version: "v1.0.1-seed-system-root-user",
+		Action: func(tx *gorm.DB) error {
+			// Ensure schema is updated before seeding
+			if err := tx.AutoMigrate(&entities.User{}); err != nil {
+				return err
+			}
+
+			// Seed the Root User as a pure SYSTEM ROOT user.
+			// This user belongs to no specific org but has global bypass powers.
+			adminUser := &entities.User{
+				Name:         "Root User",
+				Email:        "root@root.com",
+				PasswordHash: "test123", // Placeholder
+				IsRoot:       true,                                                            // Global System Admin
+			}
+			return tx.Create(adminUser).Error
+		},
+	},
 }
-
-
 
 // enableRLS executes the raw SQL to enable RLS and create the tenant policy for a table.
 func enableRLS(db *gorm.DB, tableName string) error {
@@ -50,10 +67,6 @@ func enableRLS(db *gorm.DB, tableName string) error {
 	}
 
 	// 2. Create the unified Tenant Isolation Policy
-	// This policy allows access if:
-	// - app.is_root is 'true' (Super Admin)
-	// - The record's org_id matches app.current_org_id (Direct Tenancy)
-	// - The record's org_path starts with app.current_org_path (Hierarchical Tenancy)
 	policySQL := fmt.Sprintf(`
 		DO $$
 		BEGIN
