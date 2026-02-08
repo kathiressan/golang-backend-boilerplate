@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	dbLogger "gorm.io/gorm/logger"
 )
 
 func main() {
@@ -35,12 +36,23 @@ func main() {
 		DBName:      cfg.DBName,
 		SSLMode:     cfg.DBSSLMode,
 		DatabaseURL: cfg.DatabaseURL,
+		LogMode: func() dbLogger.LogLevel {
+			if cfg.Environment == "production" {
+				return dbLogger.Silent
+			}
+			return dbLogger.Info
+		}(),
 	})
 	if err != nil {
 		logger.Fatal("Failed to initialize database", "error", err)
 	}
 	_ = db // Used via database.DB package variable
 	logger.Info("Database initialize successfully")
+
+	// Run migrations (Schema + RLS Policies)
+	if err := database.Migrate(); err != nil {
+		logger.Fatal("Failed to run database migrations", "error", err)
+	}
 
 	logger.Debug("Starting application",
 		"environment", cfg.Environment,

@@ -41,9 +41,14 @@ func (p *RLSPlugin) before(db *gorm.DB) {
 		isRoot = "true"
 	}
 
-	// Apply session variables
+	// Apply session variables with safety delimiters
+	path := id.OrgPath
+	if path != "" && path[len(path)-1] != '/' {
+		path += "/"
+	}
+
 	db.Exec(fmt.Sprintf("SET LOCAL app.current_org_id = '%s'", id.OrgID))
-	db.Exec(fmt.Sprintf("SET LOCAL app.current_org_path = '%s'", id.OrgPath))
+	db.Exec(fmt.Sprintf("SET LOCAL app.current_org_path = '%s'", path))
 	db.Exec(fmt.Sprintf("SET LOCAL app.user_id = '%s'", id.UserID))
 	db.Exec(fmt.Sprintf("SET LOCAL app.user_role = '%s'", id.Role))
 	db.Exec(fmt.Sprintf("SET LOCAL app.is_root = '%s'", isRoot))
