@@ -9,6 +9,7 @@ import (
 	config "ovmsa-be/configs"
 	"ovmsa-be/internal/api"
 	"ovmsa-be/internal/middleware"
+	"ovmsa-be/pkg/database"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
 	"syscall"
@@ -24,6 +25,22 @@ func main() {
 
 	// Ensure logs are flushed on shutdown
 	defer logger.Sync()
+
+	// Initialize Postgres DB
+	db, err := database.Initialize(database.DBConfig{
+		Host:        cfg.DBHost,
+		Port:        cfg.DBPort,
+		User:        cfg.DBUser,
+		Password:    cfg.DBPassword,
+		DBName:      cfg.DBName,
+		SSLMode:     cfg.DBSSLMode,
+		DatabaseURL: cfg.DatabaseURL,
+	})
+	if err != nil {
+		logger.Fatal("Failed to initialize database", "error", err)
+	}
+	_ = db // Used via database.DB package variable
+	logger.Info("Database initialize successfully")
 
 	logger.Debug("Starting application",
 		"environment", cfg.Environment,

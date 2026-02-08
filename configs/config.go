@@ -38,6 +38,15 @@ type Config struct {
 	JWTExpiryHours int
 	TrustedProxies []string
 	AllowedOrigins []string
+
+	// Database settings
+	DBHost      string
+	DBPort      int
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBSSLMode   string
+	DatabaseURL string
 }
 
 var (
@@ -172,6 +181,36 @@ func loadConfig() (*Config, error) {
 		trustedProxies = strings.Split(trustedProxiesStr, ",")
 	}
 
+	// Database settings
+	dbURL := os.Getenv("DATABASE_URL")
+	dbHost := os.Getenv("DB_HOST")
+	dbPortStr := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbSSLMode := os.Getenv("DB_SSLMODE")
+
+	// If no DATABASE_URL, we need individual components
+	if dbURL == "" {
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
+		if dbSSLMode == "" {
+			dbSSLMode = "disable"
+		}
+		// In production, force-require the essentials if no URL is provided
+		if environment == string(EnvProduction) {
+			if dbUser == "" || dbName == "" {
+				return nil, fmt.Errorf("either DATABASE_URL or (DB_USER and DB_NAME) must be set in production")
+			}
+		}
+	}
+
+	dbPort := 5432
+	if dbPortStr != "" {
+		dbPort, _ = strconv.Atoi(dbPortStr)
+	}
+
 	return &Config{
 		// Core settings
 		GinMode:      ginMode,
@@ -192,6 +231,15 @@ func loadConfig() (*Config, error) {
 		JWTExpiryHours: jwtExpiryHours,
 		TrustedProxies: trustedProxies,
 		AllowedOrigins: allowedOrigins,
+
+		// Database
+		DBHost:      dbHost,
+		DBPort:      dbPort,
+		DBUser:      dbUser,
+		DBPassword:  dbPassword,
+		DBName:      dbName,
+		DBSSLMode:   dbSSLMode,
+		DatabaseURL: dbURL,
 	}, nil
 }
 
