@@ -47,11 +47,12 @@ func Initialize(cfg DBConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
-// ScopedDB returns a DB instance that has the identity injected into the context.
-// The RLSPlugin will automatically read this identity and set Postgres session variables.
-func ScopedDB(ctx context.Context, id *entities.Identity) *gorm.DB {
+// ScopedDB takes a GORM DB (or transaction) and injects the identity into the context.
+// The RLSPlugin will read this identity and set Postgres session variables.
+func ScopedDB(db *gorm.DB, id *entities.Identity) *gorm.DB {
 	if id != nil {
-		ctx = context.WithValue(ctx, "identity", id)
+		ctx := context.WithValue(db.Statement.Context, "identity", id)
+		return db.WithContext(ctx)
 	}
-	return DB.WithContext(ctx)
+	return db
 }
