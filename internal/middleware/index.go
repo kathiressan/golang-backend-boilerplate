@@ -31,9 +31,8 @@ func SetupMiddleware(router *gin.Engine) {
 	// This provides consistent error responses
 	router.Use(Error404n500Handler())
 
-	// Add token handler middleware for external API authentication
-	// This validates tokens from external services
-	router.Use(ExtRequesterHandler())
+	// Add Identity context extractor for Enterprise B2B multi-tenancy
+	router.Use(AuthMiddleware())
 
 	// Add path handler middleware for route parsing
 	// This normalizes and parses request paths
