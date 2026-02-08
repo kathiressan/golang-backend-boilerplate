@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	config "ovmsa-be/configs"
+	"ovmsa-be/internal/api"
 	"ovmsa-be/internal/middleware"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
@@ -42,15 +43,8 @@ func main() {
 	// Setup application middleware
 	middleware.SetupMiddleware(router)
 
-	router.GET("/ping", func(c *gin.Context) {
-		// Add request ID to response for traceability
-		requestID := c.GetString("X-Request-ID")
-
-		c.JSON(http.StatusOK, gin.H{
-			"message":   "pong",
-			"requestId": requestID,
-		})
-	})
+	// Register all API routes
+	api.ApiHandler(router)
 
 	// Create a server address string based on environment
 	var addr string
