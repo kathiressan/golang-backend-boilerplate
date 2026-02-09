@@ -54,6 +54,10 @@ func Initialize(cfg DBConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
+func GetDB() *gorm.DB {
+	return DB
+}
+
 // ScopedDB takes a GORM DB (or transaction) and injects the identity into the context.
 // The RLSPlugin will read this identity and set Postgres session variables.
 func ScopedDB(db *gorm.DB, id *entities.Identity) *gorm.DB {
