@@ -17,11 +17,11 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 }
 
 func (r *UserRepository) FindByEmail(email string) (*entities.User, error) {
-	return r.FindOne(map[string]interface{}{"email": email})
+	return r.FindOne(map[string]any{"email": email})
 }
 
 func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
-	return r.Exists(map[string]interface{}{"email": email})
+	return r.Exists(map[string]any{"email": email})
 }
 
 func (r *UserRepository) UpdatePassword(userID, passwordHash, passwordSalt string) error {
