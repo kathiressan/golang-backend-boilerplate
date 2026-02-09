@@ -14,7 +14,7 @@ The foundation of the repository layer is the `BaseRepository`, found in `intern
 - **Preloading**: Helper method `applyPreloads` to easily include related data.
 - **Transaction Support**: All methods accept an optional `*gorm.DB` transaction.
 - **NULL Safety**: Condition maps automatically handle `nil` values, translating them to `IS NULL` in SQL.
-- **Safer Updates**: The `Update` method uses `Updates` to prevent accidental upserts.
+- **Safer Updates**: The `Update` method uses `Updates` to prevent accidental upserts. **Note:** This ignores zero-values (0, "", false); use `UpdateFields` for zero-value updates.
 
 ### Repository Aggregation
 To simplify dependency injection, all specialized repositories are aggregated into a `Repositories` struct in `internal/repository/repository.go`. The global `Repo` variable provides easy access throughout the application after initialization.
@@ -26,7 +26,7 @@ To simplify dependency injection, all specialized repositories are aggregated in
 ### SQL Injection Prevention
 The system uses multiple layers to prevent SQL injection, especially in dynamic queries:
 1. **Parameterized Queries**: Standard GORM methods are used with parameters (e.g., `.Where("id = ?", id)`).
-2. **Identifier Sanitization**: The `sanitizeIdentifier` method validates dynamic field names or sort parameters. It supports **multi-column sorting** (e.g., `name asc, created_at desc`) by splitting input and validating each identifier.
+2. **Identifier Sanitization**: The `sanitizeIdentifier` method validates dynamic field names or sort parameters. It is **case-insensitive** to support standard Go field names (e.g., `CreatedAt`) and supports **multi-column sorting**.
 3. **Condition Validation**: The `validateConditions` method ensures that keys in maps (used for queries) are safe identifiers.
 
 ### Safe Sorting and Filtering

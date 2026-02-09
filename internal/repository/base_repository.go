@@ -44,7 +44,8 @@ func (r *BaseRepository[T]) sanitizeIdentifier(identifier string) error {
 	parts := strings.Split(identifier, ",")
 	
 	// Standard identifier regex: alphanumeric, underscores, dots, and optional ASC/DESC
-	valid := regexp.MustCompile(`^[a-z0-9_\.]+(?i:\s+(asc|desc))?$`)
+	// Case-insensitive to support standard Go field names (e.g., CreatedAt)
+	valid := regexp.MustCompile(`(?i)^[a-z0-9_\.]+(\s+(asc|desc))?$`)
 	
 	for _, part := range parts {
 		trimmedPart := strings.TrimSpace(part)
@@ -143,7 +144,6 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 
 	// Use Session to ensure Count and Find operate on independent clones
 	query := r.getDB(ctx, tx...).Session(&gorm.Session{})
-	query = r.applyPreloads(query, preloads)
 	
 	if err := r.validateConditions(conditions); err != nil {
 		return nil, 0, appErrors.BadRequest(err, "Invalid query conditions")
@@ -155,6 +155,9 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 	if err := query.Model(&entity).Count(&total).Error; err != nil {
 		return nil, 0, r.wrapError(err, "Failed to count records")
 	}
+
+	// Apply preloads ONLY for the data fetch, not the count
+	query = r.applyPreloads(query, preloads)
 
 	// Apply sorting if provided (with sanitization)
 	if sort != "" {
@@ -175,7 +178,8 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 // Update an existing record (Full update)
 func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, tx ...*gorm.DB) error {
 	// We use Updates on the model to ensure GORM handles hooks and only updates valid fields.
-	// Save() performs an upsert, which might be dangerous for simple updates.
+	// NOTE: This uses GORM's struct updates, which ignores zero-values (0, "", false).
+	// For zero-value updates, use UpdateFields with a map.
 	err := r.getDB(ctx, tx...).Model(entity).Updates(entity).Error
 	return r.wrapError(err, "Failed to update record")
 }
