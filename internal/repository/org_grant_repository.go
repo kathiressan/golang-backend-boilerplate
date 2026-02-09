@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"ovmsa-be/internal/entities"
 
 	"gorm.io/gorm"
@@ -16,10 +17,10 @@ func NewOrgGrantRepository(db *gorm.DB) *OrgGrantRepository {
 	}
 }
 
-func (r *OrgGrantRepository) FindAllByUserID(userID string, tx ...*gorm.DB) ([]entities.OrgGrant, error) {
-	return r.FindAll(map[string]any{"user_id": userID}, tx...)
+func (r *OrgGrantRepository) FindAllByUserID(ctx context.Context, userID string, tx ...*gorm.DB) ([]entities.OrgGrant, error) {
+	return r.FindAll(ctx, map[string]any{"user_id": userID}, nil, tx...)
 }
 
-func (r *OrgGrantRepository) FindAllByOrgID(orgID string, tx ...*gorm.DB) ([]entities.OrgGrant, error) {
-	return r.FindAll(map[string]any{"org_id": orgID}, tx...)
+func (r *OrgGrantRepository) FindAllByOrgID(ctx context.Context, orgID string, tx ...*gorm.DB) ([]entities.OrgGrant, error) {
+	return r.FindAll(ctx, map[string]any{"org_id": orgID}, nil, tx...)
 }

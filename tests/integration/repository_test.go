@@ -37,8 +37,8 @@ func TestRepositoriesInitialization(t *testing.T) {
 
 func TestRepositoryTransactionSupport(t *testing.T) {
 	// This test verifies that the specialized repositories 
-	// have the correct method signatures to accept transactions.
-	// We don't execute the methods because they require a real DB connection.
+	// have the correct method signatures to accept context and transactions.
+	// We don't execute the methods at runtime because they require a real DB connection.
 	
 	db := &gorm.DB{Config: &gorm.Config{}}
 	repos := repository.NewRepositories(db)
@@ -49,6 +49,6 @@ func TestRepositoryTransactionSupport(t *testing.T) {
 
 	// We verify the existence of the methods with the correct signatures 
 	// implicitly by the fact that this code compiles.
-	// The user can now pass a transaction: repos.User.FindByEmail("email", tx)
-	t.Log("Repository transaction signatures verified via compilation")
+	// No further runtime execution is needed for this smoke test.
+	t.Log("Repository signatures verified via compilation")
 }

@@ -1,6 +1,10 @@
 package repository
 
-import "gorm.io/gorm"
+import (
+	"context"
+
+	"gorm.io/gorm"
+)
 
 // BaseRepository provides generic CRUD operations for any entity type
 // T is the entity type (e.g., entities.User, entities.Session)
@@ -13,32 +17,47 @@ func NewBaseRepository[T any](db *gorm.DB) *BaseRepository[T] {
 	return &BaseRepository[T]{db: db}
 }
 
-// getDB returns the provided transaction if available, otherwise the base DB connection
-func (r *BaseRepository[T]) getDB(tx ...*gorm.DB) *gorm.DB {
+// getDB returns the provided transaction if available, otherwise the base DB connection.
+// It automatically applies the provided context for RLS and tracing.
+func (r *BaseRepository[T]) getDB(ctx context.Context, tx ...*gorm.DB) *gorm.DB {
+	base := r.db
 	if len(tx) > 0 && tx[0] != nil {
-		return tx[0]
+		base = tx[0]
 	}
-	return r.db
+	return base.WithContext(ctx)
+}
+
+// applyPreloads is a helper to apply GORM preloads to a query
+func (r *BaseRepository[T]) applyPreloads(db *gorm.DB, preloads []string) *gorm.DB {
+	for _, preload := range preloads {
+		db = db.Preload(preload)
+	}
+	return db
 }
 
 // Insert new record
-func (r *BaseRepository[T]) Create(entity *T, tx ...*gorm.DB) error {
-	return r.getDB(tx...).Create(entity).Error
+func (r *BaseRepository[T]) Create(ctx context.Context, entity *T, tx ...*gorm.DB) error {
+	return r.getDB(ctx, tx...).Create(entity).Error
 }
 
 // Get a record by ID
-func (r *BaseRepository[T]) FindByID(id string, tx ...*gorm.DB) (*T, error) {
+func (r *BaseRepository[T]) FindByID(ctx context.Context, id string, preloads []string, tx ...*gorm.DB) (*T, error) {
 	var entity T
-	if err := r.getDB(tx...).Where("id = ?", id).First(&entity).Error; err != nil {
+	db := r.getDB(ctx, tx...)
+	db = r.applyPreloads(db, preloads)
+	
+	if err := db.Where("id = ?", id).First(&entity).Error; err != nil {
 		return nil, err
 	}
 	return &entity, nil
 }
 
 // Get a single record matching the conditions
-func (r *BaseRepository[T]) FindOne(conditions map[string]any, tx ...*gorm.DB) (*T, error) {
+func (r *BaseRepository[T]) FindOne(ctx context.Context, conditions map[string]any, preloads []string, tx ...*gorm.DB) (*T, error) {
 	var entity T
-	query := r.getDB(tx...)
+	query := r.getDB(ctx, tx...)
+	query = r.applyPreloads(query, preloads)
+	
 	for key, value := range conditions {
 		query = query.Where(key+" = ?", value)
 	}
@@ -49,9 +68,11 @@ func (r *BaseRepository[T]) FindOne(conditions map[string]any, tx ...*gorm.DB) (
 }
 
 // Get all records matching the condition
-func (r *BaseRepository[T]) FindAll(conditions map[string]any, tx ...*gorm.DB) ([]T, error) {
+func (r *BaseRepository[T]) FindAll(ctx context.Context, conditions map[string]any, preloads []string, tx ...*gorm.DB) ([]T, error) {
 	var entities []T
-	query := r.getDB(tx...)
+	query := r.getDB(ctx, tx...)
+	query = r.applyPreloads(query, preloads)
+	
 	for key, value := range conditions {
 		query = query.Where(key+" = ?", value)
 	}
@@ -62,12 +83,14 @@ func (r *BaseRepository[T]) FindAll(conditions map[string]any, tx ...*gorm.DB) (
 }
 
 // Get paginated records
-func (r *BaseRepository[T]) List(offset, limit int, conditions map[string]any, tx ...*gorm.DB) ([]T, int64, error) {
+func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort string, conditions map[string]any, preloads []string, tx ...*gorm.DB) ([]T, int64, error) {
 	var entities []T
 	var total int64
 
 	// Use Session to ensure Count and Find operate on independent clones
-	query := r.getDB(tx...).Session(&gorm.Session{})
+	query := r.getDB(ctx, tx...).Session(&gorm.Session{})
+	query = r.applyPreloads(query, preloads)
+	
 	for key, value := range conditions {
 		query = query.Where(key+" = ?", value)
 	}
@@ -76,6 +99,11 @@ func (r *BaseRepository[T]) List(offset, limit int, conditions map[string]any, t
 	var entity T
 	if err := query.Model(&entity).Count(&total).Error; err != nil {
 		return nil, 0, err
+	}
+
+	// Apply sorting if provided
+	if sort != "" {
+		query = query.Order(sort)
 	}
 
 	// Get paginated results
@@ -87,26 +115,26 @@ func (r *BaseRepository[T]) List(offset, limit int, conditions map[string]any, t
 }
 
 // Update an existing record
-func (r *BaseRepository[T]) Update(entity *T, tx ...*gorm.DB) error {
-	return r.getDB(tx...).Save(entity).Error
+func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, tx ...*gorm.DB) error {
+	return r.getDB(ctx, tx...).Save(entity).Error
 }
 
 // Update specific fields of a record
-func (r *BaseRepository[T]) UpdateFields(id string, fields map[string]any, tx ...*gorm.DB) error {
+func (r *BaseRepository[T]) UpdateFields(ctx context.Context, id string, fields map[string]any, tx ...*gorm.DB) error {
 	var entity T
-	return r.getDB(tx...).Model(&entity).Where("id = ?", id).Updates(fields).Error
+	return r.getDB(ctx, tx...).Model(&entity).Where("id = ?", id).Updates(fields).Error
 }
 
 // Delete a record by ID
-func (r *BaseRepository[T]) Delete(id string, tx ...*gorm.DB) error {
+func (r *BaseRepository[T]) Delete(ctx context.Context, id string, tx ...*gorm.DB) error {
 	var entity T
-	return r.getDB(tx...).Delete(&entity, "id = ?", id).Error
+	return r.getDB(ctx, tx...).Delete(&entity, "id = ?", id).Error
 }
 
 // Delete records matching conditions
-func (r *BaseRepository[T]) DeleteWhere(conditions map[string]any, tx ...*gorm.DB) (int64, error) {
+func (r *BaseRepository[T]) DeleteWhere(ctx context.Context, conditions map[string]any, tx ...*gorm.DB) (int64, error) {
 	var entity T
-	query := r.getDB(tx...)
+	query := r.getDB(ctx, tx...)
 	for key, value := range conditions {
 		query = query.Where(key+" = ?", value)
 	}
@@ -115,10 +143,10 @@ func (r *BaseRepository[T]) DeleteWhere(conditions map[string]any, tx ...*gorm.D
 }
 
 // Count records matching conditions
-func (r *BaseRepository[T]) Count(conditions map[string]any, tx ...*gorm.DB) (int64, error) {
+func (r *BaseRepository[T]) Count(ctx context.Context, conditions map[string]any, tx ...*gorm.DB) (int64, error) {
 	var entity T
 	var count int64
-	query := r.getDB(tx...).Model(&entity)
+	query := r.getDB(ctx, tx...).Model(&entity)
 	for key, value := range conditions {
 		query = query.Where(key+" = ?", value)
 	}
@@ -127,12 +155,12 @@ func (r *BaseRepository[T]) Count(conditions map[string]any, tx ...*gorm.DB) (in
 }
 
 // Checks if a record exists matching conditions
-func (r *BaseRepository[T]) Exists(conditions map[string]any, tx ...*gorm.DB) (bool, error) {
-	count, err := r.Count(conditions, tx...)
+func (r *BaseRepository[T]) Exists(ctx context.Context, conditions map[string]any, tx ...*gorm.DB) (bool, error) {
+	count, err := r.Count(ctx, conditions, tx...)
 	return count > 0, err
 }
 
 // Returns the underlying database instance for custom queries
-func (r *BaseRepository[T]) GetDB(tx ...*gorm.DB) *gorm.DB {
-	return r.getDB(tx...)
+func (r *BaseRepository[T]) GetDB(ctx context.Context, tx ...*gorm.DB) *gorm.DB {
+	return r.getDB(ctx, tx...)
 }
