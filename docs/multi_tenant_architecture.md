@@ -45,6 +45,8 @@ Before any query runs, the plugin executes `SET LOCAL` commands to pass the `Ide
 -   `SET LOCAL app.current_org_id = '...'`
 -   `SET LOCAL app.current_org_path = '...'`
 
+For a deeper dive into how repositories handle this data and ensure security, see [Repository Layer Architecture](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/repository_layer.md).
+
 ---
 
 ## 4. How to Use in Development
