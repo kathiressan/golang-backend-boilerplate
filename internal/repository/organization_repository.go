@@ -24,5 +24,5 @@ func (r *OrganizationRepository) FindByParentID(ctx context.Context, parentID st
 func (r *OrganizationRepository) FindChildren(ctx context.Context, parentPath string, tx ...*gorm.DB) ([]entities.Organization, error) {
 	var orgs []entities.Organization
 	err := r.GetDB(ctx, tx...).Where("org_path LIKE ?", parentPath+"%").Find(&orgs).Error
-	return orgs, err
+	return orgs, r.wrapError(err, "Failed to fetch child organizations")
 }

@@ -43,7 +43,8 @@ func (r *SessionRepository) DeleteAllByUserID(ctx context.Context, userID string
 }
 
 func (r *SessionRepository) DeleteExpired(ctx context.Context, tx ...*gorm.DB) error {
-	return r.GetDB(ctx, tx...).Where("expires_at < ?", time.Now()).Delete(&entities.Session{}).Error
+	err := r.GetDB(ctx, tx...).Where("expires_at < ?", time.Now()).Delete(&entities.Session{}).Error
+	return r.wrapError(err, "Failed to delete expired sessions")
 }
 
 func (r *SessionRepository) CountActiveByUserID(ctx context.Context, userID string, tx ...*gorm.DB) (int64, error) {
@@ -51,5 +52,5 @@ func (r *SessionRepository) CountActiveByUserID(ctx context.Context, userID stri
 	err := r.GetDB(ctx, tx...).Model(&entities.Session{}).
 		Where("user_id = ? AND expires_at > ?", userID, time.Now()).
 		Count(&count).Error
-	return count, err
+	return count, r.wrapError(err, "Failed to count active sessions")
 }

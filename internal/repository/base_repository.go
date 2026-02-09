@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	appErrors "ovmsa-be/pkg/errors"
 
 	"gorm.io/gorm"
 )
@@ -15,6 +17,17 @@ type BaseRepository[T any] struct {
 // NewBaseRepository creates a new generic repository instance
 func NewBaseRepository[T any](db *gorm.DB) *BaseRepository[T] {
 	return &BaseRepository[T]{db: db}
+}
+
+// wrapError is a helper to convert GORM errors into AppErrors
+func (r *BaseRepository[T]) wrapError(err error, message string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return appErrors.NotFound(err, message)
+	}
+	return appErrors.InternalServerError(err, message)
 }
 
 // getDB returns the provided transaction if available, otherwise the base DB connection.
@@ -37,7 +50,8 @@ func (r *BaseRepository[T]) applyPreloads(db *gorm.DB, preloads []string) *gorm.
 
 // Insert new record
 func (r *BaseRepository[T]) Create(ctx context.Context, entity *T, tx ...*gorm.DB) error {
-	return r.getDB(ctx, tx...).Create(entity).Error
+	err := r.getDB(ctx, tx...).Create(entity).Error
+	return r.wrapError(err, "Failed to create record")
 }
 
 // Get a record by ID
@@ -47,7 +61,7 @@ func (r *BaseRepository[T]) FindByID(ctx context.Context, id string, preloads []
 	db = r.applyPreloads(db, preloads)
 	
 	if err := db.Where("id = ?", id).First(&entity).Error; err != nil {
-		return nil, err
+		return nil, r.wrapError(err, "Record not found")
 	}
 	return &entity, nil
 }
@@ -62,7 +76,7 @@ func (r *BaseRepository[T]) FindOne(ctx context.Context, conditions map[string]a
 		query = query.Where(key+" = ?", value)
 	}
 	if err := query.First(&entity).Error; err != nil {
-		return nil, err
+		return nil, r.wrapError(err, "Record not found")
 	}
 	return &entity, nil
 }
@@ -77,7 +91,7 @@ func (r *BaseRepository[T]) FindAll(ctx context.Context, conditions map[string]a
 		query = query.Where(key+" = ?", value)
 	}
 	if err := query.Find(&entities).Error; err != nil {
-		return nil, err
+		return nil, r.wrapError(err, "Failed to fetch records")
 	}
 	return entities, nil
 }
@@ -98,7 +112,7 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 	// Get total count
 	var entity T
 	if err := query.Model(&entity).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, r.wrapError(err, "Failed to count records")
 	}
 
 	// Apply sorting if provided
@@ -108,27 +122,30 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 
 	// Get paginated results
 	if err := query.Offset(offset).Limit(limit).Find(&entities).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, r.wrapError(err, "Failed to fetch paginated records")
 	}
 
 	return entities, total, nil
 }
 
-// Update an existing record
+// Update an existing record (Full update)
 func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, tx ...*gorm.DB) error {
-	return r.getDB(ctx, tx...).Save(entity).Error
+	err := r.getDB(ctx, tx...).Save(entity).Error
+	return r.wrapError(err, "Failed to update record")
 }
 
-// Update specific fields of a record
+// Update specific fields of a record (Partial update)
 func (r *BaseRepository[T]) UpdateFields(ctx context.Context, id string, fields map[string]any, tx ...*gorm.DB) error {
 	var entity T
-	return r.getDB(ctx, tx...).Model(&entity).Where("id = ?", id).Updates(fields).Error
+	err := r.getDB(ctx, tx...).Model(&entity).Where("id = ?", id).Updates(fields).Error
+	return r.wrapError(err, "Failed to update specific fields")
 }
 
 // Delete a record by ID
 func (r *BaseRepository[T]) Delete(ctx context.Context, id string, tx ...*gorm.DB) error {
 	var entity T
-	return r.getDB(ctx, tx...).Delete(&entity, "id = ?", id).Error
+	err := r.getDB(ctx, tx...).Delete(&entity, "id = ?", id).Error
+	return r.wrapError(err, "Failed to delete record")
 }
 
 // Delete records matching conditions
@@ -139,7 +156,10 @@ func (r *BaseRepository[T]) DeleteWhere(ctx context.Context, conditions map[stri
 		query = query.Where(key+" = ?", value)
 	}
 	result := query.Delete(&entity)
-	return result.RowsAffected, result.Error
+	if result.Error != nil {
+		return 0, r.wrapError(result.Error, "Failed to delete records")
+	}
+	return result.RowsAffected, nil
 }
 
 // Count records matching conditions
@@ -151,13 +171,18 @@ func (r *BaseRepository[T]) Count(ctx context.Context, conditions map[string]any
 		query = query.Where(key+" = ?", value)
 	}
 	err := query.Count(&count).Error
-	return count, err
+	return count, r.wrapError(err, "Failed to count records")
 }
 
 // Checks if a record exists matching conditions
 func (r *BaseRepository[T]) Exists(ctx context.Context, conditions map[string]any, tx ...*gorm.DB) (bool, error) {
 	count, err := r.Count(ctx, conditions, tx...)
 	return count > 0, err
+}
+
+// ExistsByID checks if a record exists by its primary key
+func (r *BaseRepository[T]) ExistsByID(ctx context.Context, id string, tx ...*gorm.DB) (bool, error) {
+	return r.Exists(ctx, map[string]any{"id": id}, tx...)
 }
 
 // Returns the underlying database instance for custom queries

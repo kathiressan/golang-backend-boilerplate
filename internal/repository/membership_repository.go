@@ -30,7 +30,7 @@ func (r *MembershipRepository) FindFirstByUser(ctx context.Context, userID strin
 		return nil, err
 	}
 	if len(memberships) == 0 {
-		return nil, gorm.ErrRecordNotFound
+		return nil, r.wrapError(gorm.ErrRecordNotFound, "Membership not found")
 	}
 	return &memberships[0], nil
 }
@@ -45,9 +45,10 @@ func (r *MembershipRepository) FindAllByOrg(ctx context.Context, orgID string, t
 
 func (r *MembershipRepository) UpdateRole(ctx context.Context, userID, orgID, newRole string, tx ...*gorm.DB) error {
 	// For composite keys, we need a custom query
-	return r.GetDB(ctx, tx...).Model(&entities.Membership{}).
+	err := r.GetDB(ctx, tx...).Model(&entities.Membership{}).
 		Where("user_id = ? AND org_id = ?", userID, orgID).
 		Update("role", newRole).Error
+	return r.wrapError(err, "Failed to update membership role")
 }
 
 func (r *MembershipRepository) DeleteByUserAndOrg(ctx context.Context, userID, orgID string, tx ...*gorm.DB) error {
