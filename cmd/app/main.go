@@ -9,6 +9,7 @@ import (
 	config "ovmsa-be/configs"
 	"ovmsa-be/internal/api"
 	"ovmsa-be/internal/middleware"
+	"ovmsa-be/internal/repository"
 	"ovmsa-be/pkg/database"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
@@ -48,6 +49,10 @@ func main() {
 	}
 	_ = db // Used via database.DB package variable
 	logger.Info("Database initialize successfully")
+
+	// Initialize Repositories
+	repository.Initialize(db)
+	logger.Info("Repositories initialized successfully")
 
 	// Run migrations (Schema + RLS Policies)
 	if err := database.Migrate(); err != nil {

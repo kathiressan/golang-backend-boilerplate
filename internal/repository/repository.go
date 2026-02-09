@@ -2,6 +2,8 @@ package repository
 
 import "gorm.io/gorm"
 
+var Repo *Repositories
+
 // Repositories aggregates all repository instances for easy dependency injection
 type Repositories struct {
 	User         *UserRepository
@@ -20,4 +22,8 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Organization: NewOrganizationRepository(db),
 		OrgGrant:     NewOrgGrantRepository(db),
 	}
+}
+
+func Initialize(db *gorm.DB) {
+	Repo = NewRepositories(db)
 }
