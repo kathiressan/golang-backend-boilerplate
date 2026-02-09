@@ -3,7 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	appErrors "ovmsa-be/pkg/errors"
+	"regexp"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -28,6 +31,31 @@ func (r *BaseRepository[T]) wrapError(err error, message string) error {
 		return appErrors.NotFound(err, message)
 	}
 	return appErrors.InternalServerError(err, message)
+}
+
+// sanitizeIdentifier checks if a string is a valid SQL identifier (alphanumeric and underscores only)
+// This prevents SQL injection when dynamic keys or sort parameters are used.
+func (r *BaseRepository[T]) sanitizeIdentifier(identifier string) error {
+	if identifier == "" {
+		return nil
+	}
+	// Simple regex to allow only alphanumeric, underscores, and dots (for table aliases)
+	// Also allows "ASC" or "DESC" suffix for sort parameters (case insensitive)
+	valid := regexp.MustCompile(`^[a-z0-9_\.]+(?i:\s+(asc|desc))?$`)
+	if !valid.MatchString(strings.TrimSpace(identifier)) {
+		return fmt.Errorf("invalid identifier: %s", identifier)
+	}
+	return nil
+}
+
+// validateConditions ensures all keys in the conditions map are safe identifiers
+func (r *BaseRepository[T]) validateConditions(conditions map[string]any) error {
+	for key := range conditions {
+		if err := r.sanitizeIdentifier(key); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // getDB returns the provided transaction if available, otherwise the base DB connection.
@@ -72,8 +100,11 @@ func (r *BaseRepository[T]) FindOne(ctx context.Context, conditions map[string]a
 	query := r.getDB(ctx, tx...)
 	query = r.applyPreloads(query, preloads)
 	
+	if err := r.validateConditions(conditions); err != nil {
+		return nil, appErrors.BadRequest(err, "Invalid query conditions")
+	}
 	for key, value := range conditions {
-		query = query.Where(key+" = ?", value)
+		query = query.Where(fmt.Sprintf("%s = ?", key), value)
 	}
 	if err := query.First(&entity).Error; err != nil {
 		return nil, r.wrapError(err, "Record not found")
@@ -87,8 +118,11 @@ func (r *BaseRepository[T]) FindAll(ctx context.Context, conditions map[string]a
 	query := r.getDB(ctx, tx...)
 	query = r.applyPreloads(query, preloads)
 	
+	if err := r.validateConditions(conditions); err != nil {
+		return nil, appErrors.BadRequest(err, "Invalid query conditions")
+	}
 	for key, value := range conditions {
-		query = query.Where(key+" = ?", value)
+		query = query.Where(fmt.Sprintf("%s = ?", key), value)
 	}
 	if err := query.Find(&entities).Error; err != nil {
 		return nil, r.wrapError(err, "Failed to fetch records")
@@ -105,8 +139,11 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 	query := r.getDB(ctx, tx...).Session(&gorm.Session{})
 	query = r.applyPreloads(query, preloads)
 	
+	if err := r.validateConditions(conditions); err != nil {
+		return nil, 0, appErrors.BadRequest(err, "Invalid query conditions")
+	}
 	for key, value := range conditions {
-		query = query.Where(key+" = ?", value)
+		query = query.Where(fmt.Sprintf("%s = ?", key), value)
 	}
 
 	// Get total count
@@ -115,8 +152,11 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 		return nil, 0, r.wrapError(err, "Failed to count records")
 	}
 
-	// Apply sorting if provided
+	// Apply sorting if provided (with sanitization)
 	if sort != "" {
+		if err := r.sanitizeIdentifier(sort); err != nil {
+			return nil, 0, appErrors.BadRequest(err, "Invalid sort parameter")
+		}
 		query = query.Order(sort)
 	}
 
@@ -137,23 +177,32 @@ func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, tx ...*gorm.D
 // Update specific fields of a record (Partial update)
 func (r *BaseRepository[T]) UpdateFields(ctx context.Context, id string, fields map[string]any, tx ...*gorm.DB) error {
 	var entity T
+	if err := r.validateConditions(fields); err != nil {
+		return appErrors.BadRequest(err, "Invalid field names")
+	}
 	err := r.getDB(ctx, tx...).Model(&entity).Where("id = ?", id).Updates(fields).Error
 	return r.wrapError(err, "Failed to update specific fields")
 }
 
 // Delete a record by ID
-func (r *BaseRepository[T]) Delete(ctx context.Context, id string, tx ...*gorm.DB) error {
+func (r *BaseRepository[T]) Delete(ctx context.Context, id string, tx ...*gorm.DB) (int64, error) {
 	var entity T
-	err := r.getDB(ctx, tx...).Delete(&entity, "id = ?", id).Error
-	return r.wrapError(err, "Failed to delete record")
+	result := r.getDB(ctx, tx...).Delete(&entity, "id = ?", id)
+	if result.Error != nil {
+		return 0, r.wrapError(result.Error, "Failed to delete record")
+	}
+	return result.RowsAffected, nil
 }
 
 // Delete records matching conditions
 func (r *BaseRepository[T]) DeleteWhere(ctx context.Context, conditions map[string]any, tx ...*gorm.DB) (int64, error) {
 	var entity T
 	query := r.getDB(ctx, tx...)
+	if err := r.validateConditions(conditions); err != nil {
+		return 0, appErrors.BadRequest(err, "Invalid query conditions")
+	}
 	for key, value := range conditions {
-		query = query.Where(key+" = ?", value)
+		query = query.Where(fmt.Sprintf("%s = ?", key), value)
 	}
 	result := query.Delete(&entity)
 	if result.Error != nil {
@@ -167,8 +216,11 @@ func (r *BaseRepository[T]) Count(ctx context.Context, conditions map[string]any
 	var entity T
 	var count int64
 	query := r.getDB(ctx, tx...).Model(&entity)
+	if err := r.validateConditions(conditions); err != nil {
+		return 0, appErrors.BadRequest(err, "Invalid query conditions")
+	}
 	for key, value := range conditions {
-		query = query.Where(key+" = ?", value)
+		query = query.Where(fmt.Sprintf("%s = ?", key), value)
 	}
 	err := query.Count(&count).Error
 	return count, r.wrapError(err, "Failed to count records")
