@@ -25,14 +25,7 @@ func (r *MembershipRepository) FindByUserAndOrg(ctx context.Context, userID, org
 }
 
 func (r *MembershipRepository) FindFirstByUser(ctx context.Context, userID string, tx ...*gorm.DB) (*entities.Membership, error) {
-	memberships, err := r.FindAll(ctx, map[string]any{"user_id": userID}, nil, tx...)
-	if err != nil {
-		return nil, err
-	}
-	if len(memberships) == 0 {
-		return nil, r.wrapError(gorm.ErrRecordNotFound, "Membership not found")
-	}
-	return &memberships[0], nil
+	return r.FindOne(ctx, map[string]any{"user_id": userID}, nil, tx...)
 }
 
 func (r *MembershipRepository) FindAllByUser(ctx context.Context, userID string, tx ...*gorm.DB) ([]entities.Membership, error) {

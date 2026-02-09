@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"ovmsa-be/internal/entities"
 
 	"gorm.io/gorm"
@@ -47,9 +46,9 @@ func (p *RLSPlugin) before(db *gorm.DB) {
 		path += "/"
 	}
 
-	db.Exec(fmt.Sprintf("SET LOCAL app.current_org_id = '%s'", id.OrgID))
-	db.Exec(fmt.Sprintf("SET LOCAL app.current_org_path = '%s'", path))
-	db.Exec(fmt.Sprintf("SET LOCAL app.user_id = '%s'", id.UserID))
-	db.Exec(fmt.Sprintf("SET LOCAL app.user_role = '%s'", id.Role))
-	db.Exec(fmt.Sprintf("SET LOCAL app.is_root = '%s'", isRoot))
+	db.Exec("SELECT set_config('app.current_org_id', ?, true)", id.OrgID)
+	db.Exec("SELECT set_config('app.current_org_path', ?, true)", path)
+	db.Exec("SELECT set_config('app.user_id', ?, true)", id.UserID)
+	db.Exec("SELECT set_config('app.user_role', ?, true)", id.Role)
+	db.Exec("SELECT set_config('app.is_root', ?, true)", isRoot)
 }
