@@ -33,17 +33,27 @@ func (r *BaseRepository[T]) wrapError(err error, message string) error {
 	return appErrors.InternalServerError(err, message)
 }
 
-// sanitizeIdentifier checks if a string is a valid SQL identifier (alphanumeric and underscores only)
-// This prevents SQL injection when dynamic keys or sort parameters are used.
+// sanitizeIdentifier checks if a string is a valid SQL identifier or sort expression
+// This prevents SQL injection while allowing common patterns like table aliases and multi-column sorting.
 func (r *BaseRepository[T]) sanitizeIdentifier(identifier string) error {
 	if identifier == "" {
 		return nil
 	}
-	// Simple regex to allow only alphanumeric, underscores, and dots (for table aliases)
-	// Also allows "ASC" or "DESC" suffix for sort parameters (case insensitive)
+	
+	// Split by comma for multi-column sorting
+	parts := strings.Split(identifier, ",")
+	
+	// Standard identifier regex: alphanumeric, underscores, dots, and optional ASC/DESC
 	valid := regexp.MustCompile(`^[a-z0-9_\.]+(?i:\s+(asc|desc))?$`)
-	if !valid.MatchString(strings.TrimSpace(identifier)) {
-		return fmt.Errorf("invalid identifier: %s", identifier)
+	
+	for _, part := range parts {
+		trimmedPart := strings.TrimSpace(part)
+		if trimmedPart == "" {
+			continue
+		}
+		if !valid.MatchString(trimmedPart) {
+			return fmt.Errorf("invalid identifier: %s", identifier)
+		}
 	}
 	return nil
 }
@@ -103,10 +113,8 @@ func (r *BaseRepository[T]) FindOne(ctx context.Context, conditions map[string]a
 	if err := r.validateConditions(conditions); err != nil {
 		return nil, appErrors.BadRequest(err, "Invalid query conditions")
 	}
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
-	}
-	if err := query.First(&entity).Error; err != nil {
+	
+	if err := query.Where(conditions).First(&entity).Error; err != nil {
 		return nil, r.wrapError(err, "Record not found")
 	}
 	return &entity, nil
@@ -121,10 +129,8 @@ func (r *BaseRepository[T]) FindAll(ctx context.Context, conditions map[string]a
 	if err := r.validateConditions(conditions); err != nil {
 		return nil, appErrors.BadRequest(err, "Invalid query conditions")
 	}
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
-	}
-	if err := query.Find(&entities).Error; err != nil {
+	
+	if err := query.Where(conditions).Find(&entities).Error; err != nil {
 		return nil, r.wrapError(err, "Failed to fetch records")
 	}
 	return entities, nil
@@ -142,9 +148,7 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 	if err := r.validateConditions(conditions); err != nil {
 		return nil, 0, appErrors.BadRequest(err, "Invalid query conditions")
 	}
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
-	}
+	query = query.Where(conditions)
 
 	// Get total count
 	var entity T
@@ -170,7 +174,9 @@ func (r *BaseRepository[T]) List(ctx context.Context, offset, limit int, sort st
 
 // Update an existing record (Full update)
 func (r *BaseRepository[T]) Update(ctx context.Context, entity *T, tx ...*gorm.DB) error {
-	err := r.getDB(ctx, tx...).Save(entity).Error
+	// We use Updates on the model to ensure GORM handles hooks and only updates valid fields.
+	// Save() performs an upsert, which might be dangerous for simple updates.
+	err := r.getDB(ctx, tx...).Model(entity).Updates(entity).Error
 	return r.wrapError(err, "Failed to update record")
 }
 
@@ -201,10 +207,7 @@ func (r *BaseRepository[T]) DeleteWhere(ctx context.Context, conditions map[stri
 	if err := r.validateConditions(conditions); err != nil {
 		return 0, appErrors.BadRequest(err, "Invalid query conditions")
 	}
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
-	}
-	result := query.Delete(&entity)
+	result := query.Where(conditions).Delete(&entity)
 	if result.Error != nil {
 		return 0, r.wrapError(result.Error, "Failed to delete records")
 	}
@@ -219,10 +222,7 @@ func (r *BaseRepository[T]) Count(ctx context.Context, conditions map[string]any
 	if err := r.validateConditions(conditions); err != nil {
 		return 0, appErrors.BadRequest(err, "Invalid query conditions")
 	}
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
-	}
-	err := query.Count(&count).Error
+	err := query.Where(conditions).Count(&count).Error
 	return count, r.wrapError(err, "Failed to count records")
 }
 
