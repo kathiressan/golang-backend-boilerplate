@@ -245,12 +245,11 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 	// If the app is configured with an audience but the token has none, it's also invalid.
 	if len(claims.Audience) > 0 {
 		if !slices.Contains(claims.Audience, cfg.AppName) {
-			return nil, fmt.Errorf("%w: audience mismatch", ErrTokenInvalid)
+			return nil, fmt.Errorf("%w: audience mismatch: expected %s, got %v", ErrTokenInvalid, cfg.AppName, claims.Audience)
 		}
 	} else if cfg.AppName != "" {
 		// Strictly require audience if AppName is set in config
-		// This can be made optional depending on project requirements, but stricter is better for B2B.
-		// return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
+		return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
 	}
 
 	return claims, nil

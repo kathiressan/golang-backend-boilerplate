@@ -7,6 +7,7 @@ import (
 	"ovmsa-be/internal/repository"
 	cryptographyHelper "ovmsa-be/pkg/cryptography"
 	"ovmsa-be/pkg/jwt"
+	log "ovmsa-be/pkg/logger"
 	"ovmsa-be/pkg/response"
 	"strconv"
 	"strings"
@@ -155,7 +156,9 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		Requester:   requester,
 	})
 
-	// Unified identity for RLS and permissions
+	// Unified identity for RLS and permissions.
+	// CAUTION: IsRoot: true gives full access. In a production system with multiple
+	// external services, you should assign specific roles/permissions per requester.
 	c.Set("identity", &entities.Identity{
 		UserID:  requesterID,
 		OrgID:   "SYSTEM",
@@ -203,6 +206,10 @@ func handleUserIdentity(c *gin.Context, token string) {
 			c.Abort()
 			return
 		}
+		
+		// Log detailed error for internal troubleshooting
+		log.Error("JWT validation failed", "error", err)
+		
 		// Generic unauthorized for other validation failures
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token")
 		c.Abort()

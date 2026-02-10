@@ -61,6 +61,7 @@ func TestGenerateAndValidateAccessTokenHS256(t *testing.T) {
 		OrgPath:   "/org/456",
 		Role:      "admin",
 		IsRoot:    true,
+		Audience:  "TestApp",
 	}
 
 	token, err := GenerateAccessToken(identity)
@@ -97,6 +98,7 @@ func TestGenerateAndValidateAccessTokenRS256(t *testing.T) {
 		OrgPath:   "/rs256",
 		Role:      "superuser",
 		IsRoot:    true,
+		Audience:  "TestApp",
 	}
 
 	token, err := GenerateAccessToken(identity)
@@ -156,6 +158,7 @@ func TestGenerateAndValidateAccessTokenWithDBKey(t *testing.T) {
 	identity := UserIdentity{
 		UserID:    "db-user",
 		SessionID: "db-sess",
+		Audience:  "TestApp",
 	}
 
 	// 1. Generate with DB key
@@ -210,7 +213,7 @@ func TestTokenExpired(t *testing.T) {
 		config.ResetConfigForTest()
 	}()
 
-	identity := UserIdentity{UserID: "user-exp"}
+	identity := UserIdentity{UserID: "user-exp", Audience: "TestApp"}
 	token, _ := GenerateAccessToken(identity)
 
 	claims, err := ValidateAccessToken(token)

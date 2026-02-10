@@ -57,6 +57,7 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 	identity := jwt.UserIdentity{
 		UserID:    user.ID,
 		SessionID: sessionID,
+		Audience:  "TestApp",
 	}
 	token, _ := jwt.GenerateAccessToken(identity)
 

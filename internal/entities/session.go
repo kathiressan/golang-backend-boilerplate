@@ -9,7 +9,7 @@ import (
 type Session struct {
 	BaseEntity
 	UserID       string    `gorm:"index;type:varchar(26);not null" json:"user_id"`
-	RefreshToken string    `gorm:"uniqueIndex;not null" json:"-"`      // Should be a hashed value in production
+	RefreshToken string    `gorm:"uniqueIndex;not null" json:"-"`      // Stored as a SHA256 hash (see jwt.HashToken)
 	IPAddress    string    `gorm:"type:varchar(45)" json:"ip_address"` // Supports IPv6
 	UserAgent    string    `gorm:"type:text" json:"user_agent"`
 	ExpiresAt    time.Time `gorm:"index" json:"expires_at"`
