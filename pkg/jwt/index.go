@@ -231,7 +231,8 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 		if errors.Is(err, jwt.ErrTokenMalformed) {
 			return nil, ErrTokenMalformed
 		}
-		return nil, ErrTokenInvalid
+		// Log detailed error for internal debugging if needed, but return generic error to client
+		return nil, fmt.Errorf("%w: %v", ErrTokenInvalid, err)
 	}
 
 	claims, ok := token.Claims.(*TokenClaims)
@@ -240,14 +241,16 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 	}
 
 	// Verify Audience
+	// If the token has an audience, it MUST match the app name.
+	// If the app is configured with an audience but the token has none, it's also invalid.
 	if len(claims.Audience) > 0 {
-		var found bool
-		if slices.Contains(claims.Audience, cfg.AppName) {
-				found = true
-			}
-		if !found {
-			return nil, ErrTokenInvalid
+		if !slices.Contains(claims.Audience, cfg.AppName) {
+			return nil, fmt.Errorf("%w: audience mismatch", ErrTokenInvalid)
 		}
+	} else if cfg.AppName != "" {
+		// Strictly require audience if AppName is set in config
+		// This can be made optional depending on project requirements, but stricter is better for B2B.
+		// return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
 	}
 
 	return claims, nil

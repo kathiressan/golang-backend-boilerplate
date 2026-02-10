@@ -76,6 +76,7 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 
 	// 5. Revoke the session (delete from DB)
 	db.Delete(&session)
+	PurgeCaches() // Clear cache to ensure revocation is immediate for this test
 
 	// 6. Test Case: Valid token, REVOKED session
 	w2 := httptest.NewRecorder()
