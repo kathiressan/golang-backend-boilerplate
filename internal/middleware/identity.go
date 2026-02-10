@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"fmt"
 	config "ovmsa-be/configs"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/repository"
@@ -88,22 +89,19 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 // handleExternalServiceToken handles tokens from known external services with format:
-// New: requesterID : unixTimestamp : nonce : signature
-// Old: requesterID : unixTimestamp : signature
+// Required: requesterID : unixTimestamp : nonce : signature
 func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
-	var requesterID, timestampStr, nonce, signature string
-
-	if len(tokenParts) == 4 {
-		requesterID = tokenParts[0]
-		timestampStr = tokenParts[1]
-		nonce = tokenParts[2]
-		signature = tokenParts[3]
-	} else {
-		requesterID = tokenParts[0]
-		timestampStr = tokenParts[1]
-		signature = tokenParts[2]
-		log.Warn("External service is using deprecated token format (no nonce)", "requester_id", requesterID)
+	// Enforce 4-part format only (requesterID:timestamp:nonce:signature)
+	if len(tokenParts) != 4 {
+		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token format. Expected format: requesterID:timestamp:nonce:signature")
+		c.Abort()
+		return
 	}
+
+	requesterID := tokenParts[0]
+	timestampStr := tokenParts[1]
+	nonce := tokenParts[2]
+	signature := tokenParts[3]
 
 	// 1. Replay Protection: Check if this signature has been seen recently
 	if _, seen := replayCache.Get(signature); seen {
@@ -123,12 +121,7 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 
 	// 3. Verify signature
 	// Proves the sender knows the secret key
-	var expectedSignature string
-	if nonce != "" {
-		expectedSignature = cryptographyHelper.Base64HMAC(timestampStr+":"+nonce, requester.SecretKey)
-	} else {
-		expectedSignature = cryptographyHelper.Base64HMAC(timestampStr, requester.SecretKey)
-	}
+	expectedSignature := cryptographyHelper.Base64HMAC(timestampStr+":"+nonce, requester.SecretKey)
 
 	if expectedSignature != signature {
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token signature")
@@ -200,6 +193,14 @@ func handleUserIdentity(c *gin.Context, token string) {
 			return nil, nil
 		}
 
+		// Validate key is active and not expired
+		if !k.IsActive {
+			return nil, fmt.Errorf("signing key %s is inactive", keyID)
+		}
+		if k.IsExpired() {
+			return nil, fmt.Errorf("signing key %s has expired", keyID)
+		}
+
 		jwtKey := &jwt.JWTKey{
 			ID:        k.Version,
 			Algorithm: k.Algorithm,
@@ -233,14 +234,12 @@ func handleUserIdentity(c *gin.Context, token string) {
 
 	// Convert claims to internal Identity entity for RLS and permissions
 	id := &entities.Identity{
-		UserID:  claims.AccessUserID(),
-		OrgID:   claims.OrgID,
-		OrgPath: claims.OrgPath,
-		Role:    claims.Role,
-		IsRoot:  claims.IsRoot,
-		Attributes: map[string]any{
-			"session_id": claims.AccessSessionID(),
-		},
+		UserID:    claims.AccessUserID(),
+		SessionID: claims.AccessSessionID(),
+		OrgID:     claims.OrgID,
+		OrgPath:   claims.OrgPath,
+		Role:      claims.Role,
+		IsRoot:    claims.IsRoot,
 	}
 
 	// Identity Consistency Check: Verify the identity data in the JWT is still valid.

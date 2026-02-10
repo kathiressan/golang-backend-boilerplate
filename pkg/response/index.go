@@ -158,6 +158,17 @@ func ValidationErrorWithDetailsResponse(c *gin.Context, err error, msg string, d
 	Error(c, appErr)
 }
 
+// TooManyRequestsResponse returns a 429 Too Many Requests response
+// This helper function creates a standardized rate limit error response
+// Parameters:
+// - c: The Gin context
+// - err: The underlying error
+// - msg: A human-readable error message
+func TooManyRequestsResponse(c *gin.Context, err error, msg string) {
+	appErr := appErrors.TooManyRequests(err, msg)
+	Error(c, appErr)
+}
+
 // InternalServerErrorResponse returns a 500 Internal Server Error response
 // This helper function creates a standardized internal server error response
 // Parameters:

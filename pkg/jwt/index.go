@@ -241,15 +241,29 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 	}
 
 	// Verify Audience
-	// If the token has an audience, it MUST match the app name.
-	// If the app is configured with an audience but the token has none, it's also invalid.
-	if len(claims.Audience) > 0 {
-		if !slices.Contains(claims.Audience, cfg.AppName) {
-			return nil, fmt.Errorf("%w: audience mismatch: expected %s, got %v", ErrTokenInvalid, cfg.AppName, claims.Audience)
+	// If enforcement is enabled, strictly validate audience claims.
+	// Otherwise, log warnings but allow tokens without audience for backward compatibility.
+	if cfg.EnforceAudienceValidation {
+		// Strict mode: audience MUST match
+		if len(claims.Audience) > 0 {
+			if !slices.Contains(claims.Audience, cfg.AppName) {
+				return nil, fmt.Errorf("%w: audience mismatch: expected %s, got %v", ErrTokenInvalid, cfg.AppName, claims.Audience)
+			}
+		} else if cfg.AppName != "" {
+			// Strictly require audience if AppName is set in config
+			return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
 		}
-	} else if cfg.AppName != "" {
-		// Strictly require audience if AppName is set in config
-		return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
+	} else {
+		// Permissive mode: log warnings but allow
+		if len(claims.Audience) > 0 {
+			if !slices.Contains(claims.Audience, cfg.AppName) {
+				// Log warning but don't reject
+				fmt.Printf("WARNING: Token audience mismatch: expected %s, got %v. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.\n", cfg.AppName, claims.Audience)
+			}
+		} else if cfg.AppName != "" {
+			// Log warning for missing audience
+			fmt.Printf("WARNING: Token missing audience claim. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.\n")
+		}
 	}
 
 	return claims, nil

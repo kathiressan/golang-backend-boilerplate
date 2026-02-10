@@ -40,6 +40,9 @@ type Config struct {
 	JWTPublicKey             string
 	AccessTokenExpiryMinutes int
 	RefreshTokenExpiryDays   int
+	EnforceAudienceValidation bool
+	RateLimitEnabled          bool
+	RateLimitRequestsPerMinute int
 	TrustedProxies           []string
 	AllowedOrigins           []string
 
@@ -194,6 +197,19 @@ func loadConfig() (*Config, error) {
 		}
 	}
 
+	// Audience validation (default: false for backward compatibility)
+	enforceAudienceValidation := os.Getenv("ENFORCE_AUDIENCE_VALIDATION") == "true"
+
+	// Rate limiting settings
+	rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED") == "true"
+	rateLimitRequestsPerMinute := 60 // Default to 60 requests per minute
+	if rateLimitStr := os.Getenv("RATE_LIMIT_REQUESTS_PER_MINUTE"); rateLimitStr != "" {
+		rateLimitRequestsPerMinute, err = strconv.Atoi(rateLimitStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RATE_LIMIT_REQUESTS_PER_MINUTE value: %s", rateLimitStr)
+		}
+	}
+
 	// Load CORS settings
 	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
 	var allowedOrigins []string
@@ -267,14 +283,17 @@ func loadConfig() (*Config, error) {
 		IdleTimeoutSeconds:  idleTimeout,
 
 		// Security settings
-		JWTSigningMethod:         jwtSigningMethod,
-		JWTSecret:                jwtSecret,
-		JWTPrivateKey:            jwtPrivateKey,
-		JWTPublicKey:             jwtPublicKey,
-		AccessTokenExpiryMinutes: accessTokenExpiryMinutes,
-		RefreshTokenExpiryDays:   refreshTokenExpiryDays,
-		TrustedProxies:           trustedProxies,
-		AllowedOrigins:           allowedOrigins,
+		JWTSigningMethod:           jwtSigningMethod,
+		JWTSecret:                  jwtSecret,
+		JWTPrivateKey:              jwtPrivateKey,
+		JWTPublicKey:               jwtPublicKey,
+		AccessTokenExpiryMinutes:   accessTokenExpiryMinutes,
+		RefreshTokenExpiryDays:     refreshTokenExpiryDays,
+		EnforceAudienceValidation:  enforceAudienceValidation,
+		RateLimitEnabled:           rateLimitEnabled,
+		RateLimitRequestsPerMinute: rateLimitRequestsPerMinute,
+		TrustedProxies:             trustedProxies,
+		AllowedOrigins:             allowedOrigins,
 
 		// Database
 		DBHost:      dbHost,

@@ -6,6 +6,7 @@ import "slices"
 // This is the "Identity Card" that travels with every request.
 type Identity struct {
 	UserID       string         `json:"user_id"`
+	SessionID    string         `json:"session_id"`    // Session identifier for revocation checks
 	OrgID        string         `json:"org_id"`
 	OrgPath      string         `json:"org_path"` // Materialized Path: /corp/dept/team
 	Role         string         `json:"role"`

@@ -182,6 +182,14 @@ func TestGenerateAndValidateAccessTokenWithDBKey(t *testing.T) {
 }
 
 func TestValidateAudienceMismatch(t *testing.T) {
+	// Enable strict audience validation for this test
+	os.Setenv("ENFORCE_AUDIENCE_VALIDATION", "true")
+	config.ResetConfigForTest()
+	defer func() {
+		os.Setenv("ENFORCE_AUDIENCE_VALIDATION", "false")
+		config.ResetConfigForTest()
+	}()
+
 	// Standard audience is cfg.AppName ("TestApp" in TestMain)
 	identity := UserIdentity{
 		UserID:   "user-1",

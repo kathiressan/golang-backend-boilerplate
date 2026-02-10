@@ -185,6 +185,13 @@ func ValidationErrorWithDetails(err error, message string, details any) *AppErro
 	return appErr
 }
 
+// TooManyRequests creates a 429 Too Many Requests error
+// Use when a client has exceeded rate limits
+// Example: TooManyRequests(nil, "Rate limit exceeded. Please try again later.")
+func TooManyRequests(err error, message string) *AppError {
+	return New(err, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", message, "RateLimitError")
+}
+
 // ========== Error handling utilities ==========
 
 // Is checks if an error is of a specific AppError type
