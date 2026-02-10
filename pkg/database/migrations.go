@@ -62,6 +62,10 @@ var Migrations = []MigrationStep{
 	{
 		Version: "v1.0.2-seed-initial-signing-key",
 		Action: func(tx *gorm.DB) error {
+			// Ensure schema is updated before seeding
+			if err := tx.AutoMigrate(&entities.SigningKey{}); err != nil {
+				return err
+			}
 			// Seed initial key from environment variables if they exist
 			// This provides a smooth transition from env-based to db-based keys.
 			cfg := config.GetConfig()
