@@ -42,3 +42,21 @@ func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayl
 
 	return result, nil, nil
 }
+
+// CheckOrgNameHandler handles GET /org/check-name
+func CheckOrgNameHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+	req, ok := payload.(*CheckOrgNameRequest)
+	if !ok {
+		return nil, errors.New("invalid payload type"), nil
+	}
+
+	// Check name availability
+	available, err := orgService.CheckOrgNameAvailability(ctx.Request.Context(), req.Name, req.ParentID)
+	if err != nil {
+		return nil, err, nil
+	}
+
+	return map[string]bool{
+		"available": available,
+	}, nil, nil
+}

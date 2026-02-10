@@ -15,4 +15,16 @@ var RouteMatrices = []entities.TRouteMatrix{
 			Handler: CreateOrganizationHandler,
 		},
 	},
+	{
+		Path:        "/check-name",
+		Method:      "POST",
+		ProtectedBy: entities.RBAC_AUTH,
+		Permissions: &entities.RBACConfig{
+			AllowedRoles: []string{"root"},
+		},
+		Schema:      &CheckOrgNameRequest{},
+		Controller: entities.TController{
+			Handler: CheckOrgNameHandler,
+		},
+	},
 }
