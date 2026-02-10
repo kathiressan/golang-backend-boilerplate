@@ -100,7 +100,10 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ipAddress, us
 		if input.OrgID != "" {
 			// User specified an organization
 			membership, err := repository.Repo.Membership.FindByUserAndOrg(ctx, user.ID, input.OrgID)
-			if err != nil || membership == nil {
+			if err != nil {
+				return nil, fmt.Errorf("failed to verify organization membership: %w", err)
+			}
+			if membership == nil {
 				return nil, fmt.Errorf("user does not have access to organization %s", input.OrgID)
 			}
 			orgID = membership.OrgID
@@ -202,7 +205,10 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken, audience s
 
 	// 4. Get user information
 	user, err := repository.Repo.User.FindByID(ctx, session.UserID, nil)
-	if err != nil || user == nil {
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user for session: %w", err)
+	}
+	if user == nil {
 		return nil, ErrUserNotFound
 	}
 
@@ -319,7 +325,10 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, identity *entities.Ide
 
 	// Get full user information
 	user, err := repository.Repo.User.FindByID(ctx, identity.UserID, nil)
-	if err != nil || user == nil {
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+	if user == nil {
 		return nil, ErrUserNotFound
 	}
 

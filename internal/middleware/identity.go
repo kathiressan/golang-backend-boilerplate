@@ -200,7 +200,7 @@ func handleUserIdentity(c *gin.Context, token string) {
 
 		k, err := repository.Repo.SigningKey.GetKeyByVersion(c.Request.Context(), keyID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to lookup signing key from database: %w", err)
 		}
 		if k == nil {
 			return nil, nil

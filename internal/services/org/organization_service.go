@@ -38,7 +38,7 @@ func (s *OrganizationService) CreateOrganization(ctx context.Context, name strin
 	// Calculate and validate OrgPath
 	orgID, orgPath, err := s.calculateOrgPath(ctx, name, parentID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate org path: %w", err)
 	}
 
 	// Double check uniqueness at this level (already checked in calculateOrgPath but safe to keep or rely on it)
@@ -65,7 +65,7 @@ func (s *OrganizationService) CreateOrganization(ctx context.Context, name strin
 func (s *OrganizationService) CheckOrgNameAvailability(ctx context.Context, name string, parentID *string) (bool, error) {
 	_, orgPath, err := s.calculateOrgPath(ctx, name, parentID)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to calculate org path: %w", err)
 	}
 
 	exists, err := repository.Repo.Organization.Exists(ctx, map[string]any{"org_path": orgPath})
