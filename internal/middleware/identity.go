@@ -1,9 +1,12 @@
 package middleware
 
 import (
+	"errors"
 	config "ovmsa-be/configs"
 	"ovmsa-be/internal/entities"
+	"ovmsa-be/internal/repository"
 	cryptographyHelper "ovmsa-be/pkg/cryptography"
+	"ovmsa-be/pkg/jwt"
 	"ovmsa-be/pkg/response"
 	"strconv"
 	"strings"
@@ -49,6 +52,10 @@ func AuthMiddleware() gin.HandlerFunc {
 				return
 			}
 		}
+
+		// Otherwise, handle as standard user JWT
+		handleUserIdentity(c, token)
+		c.Next()
 	}
 }
 
@@ -112,26 +119,50 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	})
 }
 
-// handleUserIdentity handles standard user JWTs (mocked but aware of colon format)
-func handleUserIdentity(c *gin.Context, token string, tokenParts []string) {
-	// Mock Logic: In production replace with actual JWT decoding logic.
-	// Note: According to user instructions, JWTs in this project use ":" separators.
+// handleUserIdentity handles standard user JWTs using real validation
+func handleUserIdentity(c *gin.Context, token string) {
+	// Define how to lookup keys from the database by KID (Version)
+	lookup := func(keyID string) (*jwt.JWTKey, error) {
+		k, err := repository.Repo.SigningKey.GetKeyByVersion(c.Request.Context(), keyID)
+		if err != nil {
+			return nil, err
+		}
+		if k == nil {
+			return nil, nil
+		}
 
-	id := &entities.Identity{
-		UserID:  "user-123",
-		OrgID:   "org-456",
-		OrgPath: "/corp/division",
-		Role:    "admin",
-		Attributes: map[string]any{
-			"department": "engineering",
-			"format":     "colon-separated-jwt",
-		},
-		IsRoot: false,
+		return &jwt.JWTKey{
+			ID:        k.Version,
+			Algorithm: k.Algorithm,
+			KeyData:   []byte(k.KeyData),
+			PublicKey: []byte(k.PublicKey),
+		}, nil
 	}
 
-	// Special case for our root-secret mock
-	if strings.Contains(token, "root-secret") {
-		id.IsRoot = true
+	// Validate the token
+	claims, err := jwt.ValidateAccessToken(token, lookup)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			response.UnauthorizedResponse(c, nil, "Unauthorized: Token has expired")
+			c.Abort()
+			return
+		}
+		// Generic unauthorized for other validation failures
+		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token")
+		c.Abort()
+		return
+	}
+
+	// Convert claims to internal Identity entity for RLS and permissions
+	id := &entities.Identity{
+		UserID:  claims.AccessUserID(),
+		OrgID:   claims.OrgID,
+		OrgPath: claims.OrgPath,
+		Role:    claims.Role,
+		IsRoot:  claims.IsRoot,
+		Attributes: map[string]any{
+			"session_id": claims.AccessSessionID(),
+		},
 	}
 
 	c.Set("identity", id)

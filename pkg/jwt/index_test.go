@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"os"
 	config "ovmsa-be/configs"
 	"testing"
@@ -129,7 +130,7 @@ func TestValidateInvalidTokenRS256(t *testing.T) {
 	claims, err := ValidateAccessToken(tokenString)
 	assert.Error(t, err)
 	assert.Nil(t, claims)
-	assert.Contains(t, err.Error(), "crypto/rsa: verification error")
+	assert.True(t, errors.Is(err, ErrTokenInvalid))
 }
 
 func TestGenerateRefreshToken(t *testing.T) {
@@ -175,5 +176,46 @@ func TestGenerateAndValidateAccessTokenWithDBKey(t *testing.T) {
 	assert.NotNil(t, claims)
 	assert.Equal(t, identity.UserID, claims.AccessUserID())
 	assert.Equal(t, dbKey.ID, claims.KeyID)
+}
+
+func TestValidateAudienceMismatch(t *testing.T) {
+	// Standard audience is cfg.AppName ("TestApp" in TestMain)
+	identity := UserIdentity{
+		UserID:   "user-1",
+		Audience: "wrong-aud",
+	}
+
+	token, _ := GenerateAccessToken(identity)
+
+	// Validate (should fail because "wrong-aud" != "TestApp")
+	claims, err := ValidateAccessToken(token)
+	assert.Error(t, err)
+	assert.Nil(t, claims)
+	assert.True(t, errors.Is(err, ErrTokenInvalid))
+
+	// Validate with correct audience
+	identity.Audience = "TestApp"
+	token2, _ := GenerateAccessToken(identity)
+	claims2, err := ValidateAccessToken(token2)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims2)
+	assert.Equal(t, "TestApp", claims2.Audience[0])
+}
+
+func TestTokenExpired(t *testing.T) {
+	os.Setenv("ACCESS_TOKEN_EXPIRY_MINUTES", "-1") // Expired in the past
+	config.ResetConfigForTest()
+	defer func() {
+		os.Setenv("ACCESS_TOKEN_EXPIRY_MINUTES", "60")
+		config.ResetConfigForTest()
+	}()
+
+	identity := UserIdentity{UserID: "user-exp"}
+	token, _ := GenerateAccessToken(identity)
+
+	claims, err := ValidateAccessToken(token)
+	assert.Error(t, err)
+	assert.Nil(t, claims)
+	assert.True(t, errors.Is(err, ErrTokenExpired))
 }
 

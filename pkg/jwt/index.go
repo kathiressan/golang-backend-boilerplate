@@ -7,9 +7,16 @@ import (
 	"errors"
 	"fmt"
 	config "ovmsa-be/configs"
+	"slices"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+)
+
+var (
+	ErrTokenExpired   = errors.New("token has expired")
+	ErrTokenInvalid   = errors.New("token is invalid")
+	ErrTokenMalformed = errors.New("token is malformed")
 )
 
 // UserIdentity contains the core identity data for token generation
@@ -20,6 +27,7 @@ type UserIdentity struct {
 	OrgPath   string
 	Role      string
 	IsRoot    bool
+	Audience  string
 }
 
 // TokenClaims represents the JWT claims for access tokens
@@ -70,6 +78,10 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 			NotBefore: jwt.NewNumericDate(time.Now().Add(-1 * time.Minute)),
 			Issuer:    cfg.AppName,
 		},
+	}
+
+	if identity.Audience != "" {
+		claims.Audience = jwt.ClaimStrings{identity.Audience}
 	}
 
 	var method jwt.SigningMethod
@@ -137,6 +149,9 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 			if err != nil {
 				return nil, fmt.Errorf("failed to lookup key %s: %w", claims.KeyID, err)
 			}
+			if k == nil {
+				return nil, fmt.Errorf("key %s not found", claims.KeyID)
+			}
 			if k.Algorithm == "RS256" {
 				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -167,17 +182,29 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
+		if errors.Is(err, jwt.ErrTokenMalformed) {
+			return nil, ErrTokenMalformed
+		}
+		return nil, ErrTokenInvalid
 	}
 
-	// Extract claims
 	claims, ok := token.Claims.(*TokenClaims)
-	if !ok {
-		return nil, errors.New("invalid token claims")
+	if !ok || !token.Valid {
+		return nil, ErrTokenInvalid
 	}
 
-	if !token.Valid {
-		return nil, errors.New("invalid token")
+	// Verify Audience
+	if len(claims.Audience) > 0 {
+		var found bool
+		if slices.Contains(claims.Audience, cfg.AppName) {
+				found = true
+			}
+		if !found {
+			return nil, ErrTokenInvalid
+		}
 	}
 
 	return claims, nil
