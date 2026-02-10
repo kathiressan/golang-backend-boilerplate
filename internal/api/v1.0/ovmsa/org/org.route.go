@@ -1,30 +1,20 @@
 package org
 
-import "ovmsa-be/internal/entities"
+import (
+	"ovmsa-be/internal/entities"
+	"ovmsa-be/pkg/helpers"
+)
 
 var RouteMatrices = []entities.TRouteMatrix{
-	{
-		Path:        "",
-		Method:      "POST",
-		ProtectedBy: entities.RBAC_AUTH,
-		Permissions: &entities.RBACConfig{
-			AllowedRoles: []string{"root"},
-		},
-		Schema:      &CreateOrganizationRequest{},
-		Controller: entities.TController{
-			Handler: CreateOrganizationHandler,
-		},
-	},
-	{
-		Path:        "/check-name",
-		Method:      "POST",
-		ProtectedBy: entities.RBAC_AUTH,
-		Permissions: &entities.RBACConfig{
-			AllowedRoles: []string{"root"},
-		},
-		Schema:      &CheckOrgNameRequest{},
-		Controller: entities.TController{
-			Handler: CheckOrgNameHandler,
-		},
-	},
+	helpers.POST("").
+		ProtectedByRBAC("root").
+		WithSchema(&CreateOrganizationRequest{}).
+		WithHandler(CreateOrganizationHandler).
+		Build(),
+
+	helpers.POST("/check-name").
+		ProtectedByRBAC("root").
+		WithSchema(&CheckOrgNameRequest{}).
+		WithHandler(CheckOrgNameHandler).
+		Build(),
 }

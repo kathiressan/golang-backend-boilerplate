@@ -2,6 +2,7 @@ package api
 
 import (
 	"ovmsa-be/internal/api/v1.0/ovmsa/auth"
+	"ovmsa-be/internal/api/v1.0/ovmsa/health"
 	"ovmsa-be/internal/api/v1.0/ovmsa/org"
 	authService "ovmsa-be/internal/services/auth"
 	orgService "ovmsa-be/internal/services/org"
@@ -82,6 +83,26 @@ func (c *OrgController) GetErrorChain() *helpers.ErrorHandlerChain {
 	return c.errorChain
 }
 
+// HealthController provides health-related handlers with dependency injection
+type HealthController struct {
+	errorChain *helpers.ErrorHandlerChain
+}
+
+// NewHealthController creates a new health controller with its dependencies
+func (f *ControllerFactory) NewHealthController() *HealthController {
+	// Initialize error handler chain for health errors
+	errorChain := helpers.NewErrorHandlerChain()
+
+	return &HealthController{
+		errorChain: errorChain,
+	}
+}
+
+// GetErrorChain returns the error handler chain
+func (c *HealthController) GetErrorChain() *helpers.ErrorHandlerChain {
+	return c.errorChain
+}
+
 // InitializeControllersWithFactory initializes controllers using the factory pattern
 // This replaces the old SetXXXService pattern with proper dependency injection
 func InitializeControllersWithFactory(authSvc *authService.AuthService, orgSvc *orgService.OrganizationService) {
@@ -96,4 +117,8 @@ func InitializeControllersWithFactory(authSvc *authService.AuthService, orgSvc *
 	orgCtrl := factory.NewOrgController()
 	org.SetOrganizationService(orgCtrl.GetService())
 	org.SetOrgErrorChain(orgCtrl.GetErrorChain())
+
+	// Initialize health controller
+	healthCtrl := factory.NewHealthController()
+	health.SetHealthErrorChain(healthCtrl.GetErrorChain())
 }

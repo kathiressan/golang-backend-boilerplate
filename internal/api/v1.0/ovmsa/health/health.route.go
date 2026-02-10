@@ -1,14 +1,13 @@
 package health
 
-import "ovmsa-be/internal/entities"
+import (
+	"ovmsa-be/internal/entities"
+	"ovmsa-be/pkg/helpers"
+)
 
 var RouteMatrices = []entities.TRouteMatrix{
-	{
-		Path:        "/",
-		Method:      "GET",
-		ProtectedBy: entities.UNPROTECTED,
-		Controller: entities.TController{
-			Handler: HealthCheckHandler,
-		},
-	},
+	helpers.GET("/").
+		Unprotected().
+		WithHandler(HealthCheckHandler).
+		Build(),
 }
