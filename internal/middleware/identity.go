@@ -73,8 +73,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		tokenParts := strings.Split(token, ":")
 
 		// Dispatch based on token content
-		// If it has 4 parts (new format) or 3 parts (old format), handle as service token.
-		if len(tokenParts) == 4 || len(tokenParts) == 3 {
+		// If it has 4 parts (new format), handle as service token.
+		if len(tokenParts) == 4 {
 			if _, isRequester := config.ValidRequesters[tokenParts[0]]; isRequester {
 				handleExternalServiceToken(c, tokenParts)
 				c.Next()
