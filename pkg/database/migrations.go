@@ -48,13 +48,23 @@ var Migrations = []MigrationStep{
 				return err
 			}
 
+			// Check if root user already exists
+			var existingUser entities.User
+			if err := tx.Where("email = ?", "root@system.local").First(&existingUser).Error; err == nil {
+				// Root user already exists, skip seeding
+				return nil
+			}
+
 			// Seed the Root User as a pure SYSTEM ROOT user.
 			// This user belongs to no specific org but has global bypass powers.
+			// Default password: "RootPass123!" (bcrypt hashed)
+			// IMPORTANT: Change this password after first login in production!
 			adminUser := &entities.User{
-				Name:         "Root User",
-				Email:        "root@root.com",
-				PasswordHash: "test123", // Placeholder
-				IsRoot:       true,                                                            // Global System Admin
+				Name:  "System Root",
+				Email: "root@system.local",
+				// Password: "RootPass123!" (bcrypt hash with cost 10)
+				PasswordHash: "$2a$10$s/P6VlKWLLQ2P5.Cr0eGIOAl0DOze79YvxFgPlXbM0IsBy.O4kasi",
+				IsRoot:       true, // Global System Admin
 			}
 			return tx.Create(adminUser).Error
 		},

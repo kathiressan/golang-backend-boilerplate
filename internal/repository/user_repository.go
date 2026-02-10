@@ -25,9 +25,8 @@ func (r *UserRepository) ExistsByEmail(ctx context.Context, email string, tx ...
 	return r.Exists(ctx, map[string]any{"email": email}, tx...)
 }
 
-func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash, passwordSalt string, tx ...*gorm.DB) error {
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string, tx ...*gorm.DB) error {
 	return r.UpdateFields(ctx, userID, map[string]any{
 		"password_hash": passwordHash,
-		"password_salt": passwordSalt,
 	}, tx...)
 }
