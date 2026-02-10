@@ -4,6 +4,7 @@ import (
 	"errors"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/services/auth"
+	"ovmsa-be/pkg/helpers"
 	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +19,9 @@ func SetAuthService(svc *auth.AuthService) {
 
 // LoginHandler handles POST /auth/login
 func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
-	req, ok := payload.(*LoginRequest)
-	if !ok {
-		return nil, errors.New("invalid payload type"), nil
+	req, err := helpers.ExtractPayload[LoginRequest](payload)
+	if err != nil {
+		return nil, err, nil
 	}
 
 	// Get client IP and user agent for session tracking
@@ -58,16 +59,9 @@ func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData 
 // LogoutHandler handles POST /auth/logout
 func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
-	identity, exists := ctx.Get("identity")
-	if !exists {
-		response.UnauthorizedResponse(ctx, nil, "Unauthorized")
-		ctx.Abort()
-		return nil, nil, nil
-	}
-
-	id, ok := identity.(*entities.Identity)
-	if !ok {
-		response.UnauthorizedResponse(ctx, nil, "Invalid identity")
+	id, err := helpers.MustGetIdentity(ctx)
+	if err != nil {
+		response.UnauthorizedResponse(ctx, err, "Unauthorized")
 		ctx.Abort()
 		return nil, nil, nil
 	}
@@ -90,16 +84,9 @@ func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData
 // LogoutAllHandler handles POST /auth/logout-all
 func LogoutAllHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
-	identity, exists := ctx.Get("identity")
-	if !exists {
-		response.UnauthorizedResponse(ctx, nil, "Unauthorized")
-		ctx.Abort()
-		return nil, nil, nil
-	}
-
-	id, ok := identity.(*entities.Identity)
-	if !ok {
-		response.UnauthorizedResponse(ctx, nil, "Invalid identity")
+	id, err := helpers.MustGetIdentity(ctx)
+	if err != nil {
+		response.UnauthorizedResponse(ctx, err, "Unauthorized")
 		ctx.Abort()
 		return nil, nil, nil
 	}
@@ -116,9 +103,9 @@ func LogoutAllHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtD
 
 // RefreshTokenHandler handles POST /auth/refresh
 func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
-	req, ok := payload.(*RefreshTokenRequest)
-	if !ok {
-		return nil, errors.New("invalid payload type"), nil
+	req, err := helpers.ExtractPayload[RefreshTokenRequest](payload)
+	if err != nil {
+		return nil, err, nil
 	}
 
 	// Refresh the token
@@ -138,16 +125,9 @@ func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, j
 // GetCurrentUserHandler handles GET /auth/me
 func GetCurrentUserHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
-	identity, exists := ctx.Get("identity")
-	if !exists {
-		response.UnauthorizedResponse(ctx, nil, "Unauthorized")
-		ctx.Abort()
-		return nil, nil, nil
-	}
-
-	id, ok := identity.(*entities.Identity)
-	if !ok {
-		response.UnauthorizedResponse(ctx, nil, "Invalid identity")
+	id, err := helpers.MustGetIdentity(ctx)
+	if err != nil {
+		response.UnauthorizedResponse(ctx, err, "Unauthorized")
 		ctx.Abort()
 		return nil, nil, nil
 	}

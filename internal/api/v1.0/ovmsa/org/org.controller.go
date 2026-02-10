@@ -4,6 +4,7 @@ import (
 	"errors"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/services/org"
+	"ovmsa-be/pkg/helpers"
 	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +19,9 @@ func SetOrganizationService(svc *org.OrganizationService) {
 
 // CreateOrganizationHandler handles POST /org
 func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
-	req, ok := payload.(*CreateOrganizationRequest)
-	if !ok {
-		return nil, errors.New("invalid payload type"), nil
+	req, err := helpers.ExtractPayload[CreateOrganizationRequest](payload)
+	if err != nil {
+		return nil, err, nil
 	}
 
 	// Set default tier if not provided
@@ -45,9 +46,9 @@ func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayl
 
 // CheckOrgNameHandler handles GET /org/check-name
 func CheckOrgNameHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
-	req, ok := payload.(*CheckOrgNameRequest)
-	if !ok {
-		return nil, errors.New("invalid payload type"), nil
+	req, err := helpers.ExtractPayload[CheckOrgNameRequest](payload)
+	if err != nil {
+		return nil, err, nil
 	}
 
 	// Check name availability
