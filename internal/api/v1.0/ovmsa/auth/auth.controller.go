@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"errors"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/services/auth"
 	"ovmsa-be/pkg/helpers"
@@ -11,10 +10,19 @@ import (
 )
 
 var authService *auth.AuthService
+var authErrorChain *helpers.ErrorHandlerChain
 
 // SetAuthService sets the auth service for the auth controllers
 func SetAuthService(svc *auth.AuthService) {
 	authService = svc
+	
+	// Initialize error handler chain for auth errors
+	authErrorChain = helpers.NewErrorHandlerChain()
+	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrInvalidCredentials, 401, "Invalid email or password"))
+	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrNoOrganizationAccess, 403, "User has no organization access"))
+	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrSessionNotFound, 404, "Session not found"))
+	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrInvalidRefreshToken, 401, "Invalid or expired refresh token"))
+	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrUserNotFound, 404, "User not found"))
 }
 
 // LoginHandler handles POST /auth/login
@@ -39,15 +47,7 @@ func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData 
 	// Perform login
 	result, err := authService.Login(ctx.Request.Context(), input, ipAddress, userAgent)
 	if err != nil {
-		// Check for specific errors
-		if errors.Is(err, auth.ErrInvalidCredentials) {
-			response.UnauthorizedResponse(ctx, err, "Invalid email or password")
-			ctx.Abort()
-			return nil, nil, nil
-		}
-		if errors.Is(err, auth.ErrNoOrganizationAccess) {
-			response.ForbiddenResponse(ctx, err, "User has no organization access")
-			ctx.Abort()
+		if handled, _ := helpers.HandleServiceError(ctx, err, authErrorChain); handled {
 			return nil, nil, nil
 		}
 		return nil, err, nil
@@ -68,9 +68,7 @@ func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData
 
 	// Logout the current session
 	if err := authService.Logout(ctx.Request.Context(), id.SessionID); err != nil {
-		if errors.Is(err, auth.ErrSessionNotFound) {
-			response.NotFoundResponse(ctx, err, "Session not found")
-			ctx.Abort()
+		if handled, _ := helpers.HandleServiceError(ctx, err, authErrorChain); handled {
 			return nil, nil, nil
 		}
 		return nil, err, nil
@@ -111,9 +109,7 @@ func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, j
 	// Refresh the token
 	result, err := authService.RefreshToken(ctx.Request.Context(), req.RefreshToken, req.Audience)
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidRefreshToken) {
-			response.UnauthorizedResponse(ctx, err, "Invalid or expired refresh token")
-			ctx.Abort()
+		if handled, _ := helpers.HandleServiceError(ctx, err, authErrorChain); handled {
 			return nil, nil, nil
 		}
 		return nil, err, nil
@@ -135,9 +131,7 @@ func GetCurrentUserHandler(ctx *gin.Context, payload entities.TValidatedPayload,
 	// Get user information
 	userInfo, err := authService.GetCurrentUser(ctx.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, auth.ErrUserNotFound) {
-			response.NotFoundResponse(ctx, err, "User not found")
-			ctx.Abort()
+		if handled, _ := helpers.HandleServiceError(ctx, err, authErrorChain); handled {
 			return nil, nil, nil
 		}
 		return nil, err, nil

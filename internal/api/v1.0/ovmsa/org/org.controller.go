@@ -1,20 +1,23 @@
 package org
 
 import (
-	"errors"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/services/org"
 	"ovmsa-be/pkg/helpers"
-	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
 var orgService *org.OrganizationService
+var orgErrorChain *helpers.ErrorHandlerChain
 
 // SetOrganizationService sets the organization service for the controllers
 func SetOrganizationService(svc *org.OrganizationService) {
 	orgService = svc
+	
+	// Initialize error handler chain for org errors
+	orgErrorChain = helpers.NewErrorHandlerChain()
+	orgErrorChain.Add(helpers.NewSpecificErrorHandler(org.ErrOrganizationAlreadyExists, 409, "Organization with this name already exists at this level"))
 }
 
 // CreateOrganizationHandler handles POST /org
@@ -33,9 +36,7 @@ func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayl
 	// Create organization
 	result, err := orgService.CreateOrganization(ctx.Request.Context(), req.Name, req.ParentID, tier)
 	if err != nil {
-		if errors.Is(err, org.ErrOrganizationAlreadyExists) {
-			response.ConflictResponse(ctx, err, err.Error())
-			ctx.Abort()
+		if handled, _ := helpers.HandleServiceError(ctx, err, orgErrorChain); handled {
 			return nil, nil, nil
 		}
 		return nil, err, nil
