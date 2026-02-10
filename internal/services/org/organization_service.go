@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/repository"
+	"ovmsa-be/pkg/utils"
 
 	"gorm.io/gorm"
 )
@@ -42,11 +43,11 @@ func (s *OrganizationService) CreateOrganization(ctx context.Context, name strin
 
 		// Inherit OrgID and build OrgPath
 		org.OrgID = parent.OrgID
-		org.OrgPath = parent.OrgPath + parent.ID + "/"
+		org.OrgPath = parent.OrgPath + utils.Slugify(name) + "/"
 	} else {
 		// Top-level organization
 		// OrgID will be set to ID in BeforeCreate hook of Organization entity
-		org.OrgPath = "/"
+		org.OrgPath = "/" + utils.Slugify(name) + "/"
 	}
 
 	// Create original record
