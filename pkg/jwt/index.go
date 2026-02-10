@@ -87,6 +87,8 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 
 	if identity.Audience != "" {
 		claims.Audience = jwt.ClaimStrings{identity.Audience}
+	} else if cfg.AppName != "" {
+		claims.Audience = jwt.ClaimStrings{cfg.AppName}
 	}
 
 	var method jwt.SigningMethod
