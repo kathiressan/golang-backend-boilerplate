@@ -99,17 +99,29 @@ func loadConfig() (*Config, error) {
 	// APP_NAME
 	appName := os.Getenv("APP_NAME")
 	if appName == "" {
-		return nil, fmt.Errorf("APP_NAME cannot be empty")
+		if ginMode == "test" {
+			appName = "TestApp"
+		} else {
+			return nil, fmt.Errorf("APP_NAME cannot be empty")
+		}
 	}
 
 	projectRoot := os.Getenv("PROJECT_ROOT")
 	if projectRoot == "" {
-		return nil, fmt.Errorf("PROJECT_ROOT cannot be empty")
+		if ginMode == "test" {
+			projectRoot = "."
+		} else {
+			return nil, fmt.Errorf("PROJECT_ROOT cannot be empty")
+		}
 	}
 
 	platformName := os.Getenv("PLATFORM_NAME")
 	if platformName == "" {
-		return nil, fmt.Errorf("PLATFORM_NAME cannot be empty")
+		if ginMode == "test" {
+			platformName = "test-platform"
+		} else {
+			return nil, fmt.Errorf("PLATFORM_NAME cannot be empty")
+		}
 	}
 
 	// Load timeout settings

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	config "ovmsa-be/configs"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,6 +18,10 @@ var (
 	ErrTokenExpired   = errors.New("token has expired")
 	ErrTokenInvalid   = errors.New("token is invalid")
 	ErrTokenMalformed = errors.New("token is malformed")
+
+	// keyCache stores already parsed RSA keys to avoid expensive re-parsing
+	// map[string]any where value is *rsa.PrivateKey or *rsa.PublicKey
+	keyCache sync.Map
 )
 
 // UserIdentity contains the core identity data for token generation
@@ -94,9 +99,17 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 		claims.KeyID = k.ID
 		if k.Algorithm == "RS256" {
 			method = jwt.SigningMethodRS256
-			key, err = jwt.ParseRSAPrivateKeyFromPEM(k.KeyData)
-			if err != nil {
-				return "", fmt.Errorf("failed to parse private key: %w", err)
+			// Use cache for private key
+			hash := sha256.Sum256(k.KeyData)
+			cacheKey := "priv-" + hex.EncodeToString(hash[:])
+			if cached, ok := keyCache.Load(cacheKey); ok {
+				key = cached
+			} else {
+				key, err = jwt.ParseRSAPrivateKeyFromPEM(k.KeyData)
+				if err != nil {
+					return "", fmt.Errorf("failed to parse private key: %w", err)
+				}
+				keyCache.Store(cacheKey, key)
 			}
 		} else {
 			method = jwt.SigningMethodHS256
@@ -106,9 +119,17 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 		// Fallback to Config
 		if cfg.JWTSigningMethod == "RS256" {
 			method = jwt.SigningMethodRS256
-			key, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(cfg.JWTPrivateKey))
-			if err != nil {
-				return "", fmt.Errorf("failed to parse private key from config: %w", err)
+			pemData := []byte(cfg.JWTPrivateKey)
+			hash := sha256.Sum256(pemData)
+			cacheKey := "priv-cfg-" + hex.EncodeToString(hash[:])
+			if cached, ok := keyCache.Load(cacheKey); ok {
+				key = cached
+			} else {
+				key, err = jwt.ParseRSAPrivateKeyFromPEM(pemData)
+				if err != nil {
+					return "", fmt.Errorf("failed to parse private key from config: %w", err)
+				}
+				keyCache.Store(cacheKey, key)
 			}
 		} else {
 			method = jwt.SigningMethodHS256
@@ -156,7 +177,18 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
-				return jwt.ParseRSAPublicKeyFromPEM(k.PublicKey)
+				// Use cache for public key
+				hash := sha256.Sum256(k.PublicKey)
+				cacheKey := "pub-" + hex.EncodeToString(hash[:])
+				if cached, ok := keyCache.Load(cacheKey); ok {
+					return cached, nil
+				}
+				pk, err := jwt.ParseRSAPublicKeyFromPEM(k.PublicKey)
+				if err != nil {
+					return nil, err
+				}
+				keyCache.Store(cacheKey, pk)
+				return pk, nil
 			}
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -170,7 +202,18 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			return jwt.ParseRSAPublicKeyFromPEM([]byte(cfg.JWTPublicKey))
+			pemData := []byte(cfg.JWTPublicKey)
+			hash := sha256.Sum256(pemData)
+			cacheKey := "pub-cfg-" + hex.EncodeToString(hash[:])
+			if cached, ok := keyCache.Load(cacheKey); ok {
+				return cached, nil
+			}
+			pk, err := jwt.ParseRSAPublicKeyFromPEM(pemData)
+			if err != nil {
+				return nil, err
+			}
+			keyCache.Store(cacheKey, pk)
+			return pk, nil
 		}
 
 		// Default to HS256

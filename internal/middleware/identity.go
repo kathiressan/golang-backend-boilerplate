@@ -165,5 +165,15 @@ func handleUserIdentity(c *gin.Context, token string) {
 		},
 	}
 
+	// Immediate Revocation Check: Verify the session still exists in the database.
+	if sessionID := claims.AccessSessionID(); sessionID != "" {
+		exists, err := repository.Repo.Session.ExistsByID(c.Request.Context(), sessionID)
+		if err != nil || !exists {
+			response.UnauthorizedResponse(c, nil, "Unauthorized: Session has been revoked")
+			c.Abort()
+			return
+		}
+	}
+
 	c.Set("identity", id)
 }
