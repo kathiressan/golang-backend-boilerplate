@@ -48,8 +48,16 @@ func (s *ProjectService) CreateProject(ctx context.Context, title string) (*enti
 
 Register it in `internal/services/init.go`.
 
-### 4. Create the Controller & Route
-Add an API handler in `internal/api/v1.0/project_controller.go` and register the route in `internal/api/routes.go`.
+### 4. Create the Controller, Route & Validation
+- Define request/response structs in `internal/api/v1.0/ovmsa/project/project.validate.go`.
+- Implement API handlers in `internal/api/v1.0/ovmsa/project/project.controller.go`.
+- Define routes using `RouteBuilder` in `internal/api/v1.0/ovmsa/project/project.route.go`.
+
+### 5. Wiring it up
+1.  **Register Routes**: Add your `project.RouteMatrices` to `internal/api/routes.go`.
+2.  **Dependency Injection**: Add the service and a `PrepareProjectChain` method to `internal/api/controller_factory.go`.
+3.  **Initialization**: Update `InitializeControllersWithFactory` in `controller_factory.go` to inject the service and error chain for your module.
+4.  **Graceful Shutdown**: If your service requires cleanup, add it to the `stopSignal` channel in `cmd/app/main.go`.
 
 ---
 

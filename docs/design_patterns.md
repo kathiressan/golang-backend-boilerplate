@@ -8,7 +8,7 @@ This document catalogs the various design patterns implemented across the codeba
 Found in `pkg/helpers/errors.go`.
 - **Purpose**: Decouples the service error from the API response logic.
 - **Implementation**: `ErrorHandlerChain` allows adding multiple `SpecificErrorHandler` instances. The first handler that matches the error type processes the request and aborts the chain.
-- **Usage**: Configured in `ControllerFactory` for each controller.
+- **Usage**: Centralized in `internal/api/controller_factory.go` via methods like `PrepareAuthChain()`.
 
 ### 2. Strategy Pattern (Authorization)
 Found in `internal/api/index.go` and `internal/middleware/permissions.go`.
@@ -32,7 +32,7 @@ Found in `pkg/helpers/route_builder.go`.
 ### 5. Factory Pattern (Dependency Injection)
 Found in `internal/api/controller_factory.go`.
 - **Purpose**: Centralizes the creation and wiring of controllers with their services and error chains.
-- **Implementation**: `ControllerFactory` encapsulates the logic for initializing specific controllers (e.g., `NewAuthController`).
+- **Implementation**: `ControllerFactory` encapsulates the logic for preparing dependencies (like error chains) and injecting services into package-level globals for each API module.
 
 ### 6. Singleton Pattern (Configuration)
 Found in `configs/config.go`.
