@@ -33,19 +33,28 @@ func (r *SessionRepository) UpdateExpiry(ctx context.Context, sessionID string, 
 }
 
 func (r *SessionRepository) DeleteByRefreshToken(ctx context.Context, hashedToken, userID string, tx ...*gorm.DB) (int64, error) {
-	return r.DeleteWhere(ctx, map[string]any{
+	// Use Unscoped() for hard delete - sessions should be permanently removed
+	db := r.GetDB(ctx, tx...).Unscoped()
+	result := db.Where(map[string]any{
 		"refresh_token": hashedToken,
 		"user_id":       userID,
-	}, tx...)
+	}).Delete(&entities.Session{})
+	
+	if result.Error != nil {
+		return 0, r.wrapError(result.Error, "Failed to delete session by refresh token")
+	}
+	return result.RowsAffected, nil
 }
 
 func (r *SessionRepository) DeleteAllByUserID(ctx context.Context, userID string, tx ...*gorm.DB) error {
-	_, err := r.DeleteWhere(ctx, map[string]any{"user_id": userID}, tx...)
-	return err
+	// Use Unscoped() for hard delete - sessions should be permanently removed
+	err := r.GetDB(ctx, tx...).Unscoped().Where("user_id = ?", userID).Delete(&entities.Session{}).Error
+	return r.wrapError(err, "Failed to delete all sessions for user")
 }
 
 func (r *SessionRepository) DeleteExpired(ctx context.Context, tx ...*gorm.DB) error {
-	err := r.GetDB(ctx, tx...).Where("expires_at < ?", time.Now()).Delete(&entities.Session{}).Error
+	// Use Unscoped() for hard delete - expired sessions should be permanently removed
+	err := r.GetDB(ctx, tx...).Unscoped().Where("expires_at < ?", time.Now()).Delete(&entities.Session{}).Error
 	return r.wrapError(err, "Failed to delete expired sessions")
 }
 
