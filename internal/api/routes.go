@@ -1,6 +1,7 @@
 package api
 
 import (
+	"ovmsa-be/internal/api/v1.0/ovmsa/auth"
 	"ovmsa-be/internal/api/v1.0/ovmsa/health"
 	"ovmsa-be/internal/entities"
 )
@@ -21,6 +22,10 @@ var RouteRegistry = []Registry{
 			{
 				Group:         "/health",
 				RouteMatrices: health.RouteMatrices,
+			},
+			{
+				Group:         "/auth",
+				RouteMatrices: auth.RouteMatrices,
 			},
 		},
 	},

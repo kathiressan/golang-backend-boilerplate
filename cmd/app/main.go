@@ -10,6 +10,7 @@ import (
 	"ovmsa-be/internal/api"
 	"ovmsa-be/internal/middleware"
 	"ovmsa-be/internal/repository"
+	"ovmsa-be/internal/services"
 	"ovmsa-be/pkg/database"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
@@ -54,6 +55,10 @@ func main() {
 	repository.Initialize(db)
 	logger.Info("Repositories initialized successfully")
 
+	// Initialize Services
+	svc := services.InitServices(db)
+	logger.Info("Services initialized successfully")
+
 	// Run migrations (Schema + RLS Policies)
 	if err := database.Migrate(); err != nil {
 		logger.Fatal("Failed to run database migrations", "error", err)
@@ -78,7 +83,7 @@ func main() {
 	middleware.SetupMiddleware(router)
 
 	// Register all API routes
-	api.ApiHandler(router)
+	api.ApiHandler(router, svc)
 
 	// Create a server address string based on environment
 	var addr string

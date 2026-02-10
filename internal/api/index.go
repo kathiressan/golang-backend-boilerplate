@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 	"ovmsa-be/internal/entities"
+	"ovmsa-be/internal/middleware"
+	"ovmsa-be/internal/services"
 	"ovmsa-be/pkg/logger"
 	"ovmsa-be/pkg/response"
 	validatorHelper "ovmsa-be/pkg/validator"
@@ -62,6 +64,22 @@ func formatValidationErrors(err error) map[string]string {
 // endPointFunc is a factory function that creates a Gin handler function for each route
 func endPointFunc(routeMatrix entities.TRouteMatrix) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Enforce authentication and authorization based on protection strategy
+		if routeMatrix.ProtectedBy != entities.UNPROTECTED {
+			// Apply permission enforcement middleware
+			permissionHandler := middleware.EnforcePermissions(
+				routeMatrix.ProtectedBy,
+				routeMatrix.Permissions,
+				routeMatrix.Attributes,
+			)
+			permissionHandler(c)
+
+			// If middleware aborted, stop processing
+			if c.IsAborted() {
+				return
+			}
+		}
+
 		// Check if Handler is nil
 		if routeMatrix.Controller.Handler == nil {
 			logger.Error("Handler not configured for route",
@@ -86,7 +104,7 @@ func endPointFunc(routeMatrix entities.TRouteMatrix) gin.HandlerFunc {
 		schema := reflect.ValueOf(routeMatrixSchema).Elem()
 		/*
 			- schema.Type() gets the type definition (the "blueprint") of the original object.
-			- reflect.New(...) allocates new memory for that type. It’s equivalent to calling new(T) in standard Go. This returns a pointer to the new, zeroed-out value.
+			- reflect.New(...) allocates new memory for that type. It's equivalent to calling new(T) in standard Go. This returns a pointer to the new, zeroed-out value.
 			- .Elem() dereferences that new pointer immediately, so the variable clone represents the actual struct value rather than a pointer to it.
 		*/
 		clone := reflect.New(schema.Type()).Elem()
@@ -170,7 +188,13 @@ func registerRoute(router *gin.RouterGroup, path string, method string, handler 
 }
 
 // ApiHandler is the main function that sets up all API routes
-func ApiHandler(router *gin.Engine) {
+func ApiHandler(router *gin.Engine, svc *services.Services) {
+	// Initialize all controllers with services
+	InitializeControllers(svc)
+	
+	// Apply authentication middleware globally
+	router.Use(middleware.AuthMiddleware())
+
 	// Register base routes
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, response.Success("success", "server up and running"))
