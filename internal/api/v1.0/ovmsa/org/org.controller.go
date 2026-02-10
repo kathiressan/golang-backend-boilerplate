@@ -14,10 +14,11 @@ var orgErrorChain *helpers.ErrorHandlerChain
 // SetOrganizationService sets the organization service for the controllers
 func SetOrganizationService(svc *org.OrganizationService) {
 	orgService = svc
-	
-	// Initialize error handler chain for org errors
-	orgErrorChain = helpers.NewErrorHandlerChain()
-	orgErrorChain.Add(helpers.NewSpecificErrorHandler(org.ErrOrganizationAlreadyExists, 409, "Organization with this name already exists at this level"))
+}
+
+// SetOrgErrorChain sets the error handler chain for org controllers
+func SetOrgErrorChain(chain *helpers.ErrorHandlerChain) {
+	orgErrorChain = chain
 }
 
 // CreateOrganizationHandler handles POST /org

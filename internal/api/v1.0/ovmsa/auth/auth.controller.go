@@ -15,14 +15,11 @@ var authErrorChain *helpers.ErrorHandlerChain
 // SetAuthService sets the auth service for the auth controllers
 func SetAuthService(svc *auth.AuthService) {
 	authService = svc
-	
-	// Initialize error handler chain for auth errors
-	authErrorChain = helpers.NewErrorHandlerChain()
-	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrInvalidCredentials, 401, "Invalid email or password"))
-	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrNoOrganizationAccess, 403, "User has no organization access"))
-	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrSessionNotFound, 404, "Session not found"))
-	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrInvalidRefreshToken, 401, "Invalid or expired refresh token"))
-	authErrorChain.Add(helpers.NewSpecificErrorHandler(auth.ErrUserNotFound, 404, "User not found"))
+}
+
+// SetAuthErrorChain sets the error handler chain for auth controllers
+func SetAuthErrorChain(chain *helpers.ErrorHandlerChain) {
+	authErrorChain = chain
 }
 
 // LoginHandler handles POST /auth/login
