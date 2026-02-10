@@ -4,6 +4,7 @@ package config
 type Requester struct {
 	ID        string
 	SecretKey string
+	Role      string // Default role assigned to this service
 }
 
 // ValidRequesters is a map of valid requester IDs to their configurations

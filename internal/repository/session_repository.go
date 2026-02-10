@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"ovmsa-be/internal/entities"
+	appErrors "ovmsa-be/pkg/errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -53,4 +55,27 @@ func (r *SessionRepository) CountActiveByUserID(ctx context.Context, userID stri
 		Where("user_id = ? AND expires_at > ?", userID, time.Now()).
 		Count(&count).Error
 	return count, r.wrapError(err, "Failed to count active sessions")
+}
+
+// RotateRefreshToken atomically replaces an old hashed refresh token with a new one.
+// It returns an error if the old token doesn't match, which helps detect token reuse/theft.
+func (r *SessionRepository) RotateRefreshToken(ctx context.Context, sessionID, oldHashedToken, newHashedToken string, newExpiry time.Time, tx ...*gorm.DB) error {
+	db := r.GetDB(ctx, tx...)
+	
+	result := db.Model(&entities.Session{}).
+		Where("id = ? AND refresh_token = ?", sessionID, oldHashedToken).
+		Updates(map[string]any{
+			"refresh_token": newHashedToken,
+			"expires_at":    newExpiry,
+		})
+
+	if result.Error != nil {
+		return r.wrapError(result.Error, "Failed to rotate refresh token")
+	}
+
+	if result.RowsAffected == 0 {
+		return appErrors.Unauthorized(errors.New("refresh token rotation failed: token mismatch or session not found"), "Invalid or already used refresh token")
+	}
+
+	return nil
 }

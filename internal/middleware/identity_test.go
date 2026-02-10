@@ -87,3 +87,98 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w2.Code)
 	assert.Contains(t, w2.Body.String(), "Session has been revoked")
 }
+
+func TestAuthMiddleware_IdentityConsistency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	os.Setenv("APP_NAME", "TestApp")
+	os.Setenv("JWT_SECRET", "test-secret")
+	config.ResetConfigForTest()
+
+	db, _ := database.InitializeTestDB()
+	repository.Initialize(db)
+	db.AutoMigrate(&entities.User{}, &entities.Session{}, &entities.Membership{})
+
+	// 1. Create a root user
+	user := entities.User{Name: "Root User", Email: "root@example.com", IsRoot: true}
+	db.Create(&user)
+
+	// 2. Generate token for root
+	token, _ := jwt.GenerateAccessToken(jwt.UserIdentity{
+		UserID: user.ID,
+		IsRoot: true,
+		Audience: "TestApp",
+	})
+
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	// 3. Verify it works initially
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("GET", "/test", nil)
+	req1.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusOK, w1.Code)
+
+	// 4. DEMOTE user in DB (remove root)
+	db.Model(&user).Update("is_root", false)
+
+	// 5. Verify token is now REJECTED
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/test", nil)
+	req2.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusUnauthorized, w2.Code)
+	assert.Contains(t, w2.Body.String(), "Identity has changed")
+}
+
+func TestAuthMiddleware_RoleConsistency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	os.Setenv("APP_NAME", "TestApp")
+	os.Setenv("JWT_SECRET", "test-secret")
+	config.ResetConfigForTest()
+
+	db, _ := database.InitializeTestDB()
+	repository.Initialize(db)
+	db.AutoMigrate(&entities.User{}, &entities.Session{}, &entities.Membership{})
+
+	user := entities.User{Name: "Org User", Email: "org@example.com"}
+	db.Create(&user)
+
+	orgID := "org-123"
+	membership := entities.Membership{
+		UserID: user.ID,
+		Role:   "admin",
+	}
+	membership.OrgID = orgID
+	db.Create(&membership)
+
+	token, _ := jwt.GenerateAccessToken(jwt.UserIdentity{
+		UserID: user.ID,
+		OrgID:  orgID,
+		Role:   "admin",
+		Audience: "TestApp",
+	})
+
+	router := gin.New()
+	router.Use(AuthMiddleware())
+	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	// Verify works initially
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("GET", "/test", nil)
+	req1.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusOK, w1.Code)
+
+	// DEMOTE role in DB
+	db.Model(&membership).Where("user_id = ? AND org_id = ?", user.ID, orgID).Update("role", "viewer")
+
+	// Verify rejected
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/test", nil)
+	req2.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusUnauthorized, w2.Code)
+	assert.Contains(t, w2.Body.String(), "Permissions have changed")
+}

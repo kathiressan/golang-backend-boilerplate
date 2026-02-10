@@ -157,14 +157,23 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	})
 
 	// Unified identity for RLS and permissions.
-	// CAUTION: IsRoot: true gives full access. In a production system with multiple
-	// external services, you should assign specific roles/permissions per requester.
+	// We now use the role configured for the requester instead of hardcoding root access.
+	role := requester.Role
+	isRoot := false
+	if role == "root" || role == "admin" {
+		// Caution: Historically these might have been treated as root.
+		// We maintain root if specifically configured or fallback to a safer default.
+		if role == "root" {
+			isRoot = true
+		}
+	}
+
 	c.Set("identity", &entities.Identity{
 		UserID:  requesterID,
 		OrgID:   "SYSTEM",
 		OrgPath: "/system",
-		Role:    "external_service",
-		IsRoot:  true,
+		Role:    role,
+		IsRoot:  isRoot,
 	})
 }
 
@@ -226,6 +235,38 @@ func handleUserIdentity(c *gin.Context, token string) {
 		Attributes: map[string]any{
 			"session_id": claims.AccessSessionID(),
 		},
+	}
+
+	// Identity Consistency Check: Verify the identity data in the JWT is still valid.
+	// This prevents "Identity Staleness" where a demoted user still has root/admin access.
+	if claims.Subject != "" {
+		// 1. Verify Global Root Status
+		user, err := repository.Repo.User.FindByID(c.Request.Context(), claims.Subject, nil)
+		if err != nil || user == nil {
+			response.UnauthorizedResponse(c, nil, "Unauthorized: User not found")
+			c.Abort()
+			return
+		}
+		if user.IsRoot != claims.IsRoot {
+			response.UnauthorizedResponse(c, nil, "Unauthorized: Identity has changed")
+			c.Abort()
+			return
+		}
+
+		// 2. Verify Org-Specific Role (if not root)
+		if !user.IsRoot && claims.OrgID != "" {
+			membership, err := repository.Repo.Membership.FindByUserAndOrg(c.Request.Context(), claims.Subject, claims.OrgID)
+			if err != nil || membership == nil {
+				response.UnauthorizedResponse(c, nil, "Unauthorized: No access to organization")
+				c.Abort()
+				return
+			}
+			if membership.Role != claims.Role {
+				response.UnauthorizedResponse(c, nil, "Unauthorized: Permissions have changed")
+				c.Abort()
+				return
+			}
+		}
 	}
 
 	// Immediate Revocation Check: Verify the session still exists in the database.
