@@ -28,6 +28,10 @@ var (
 	// replayCache tracks used signatures for external service tokens to prevent replays (TTL 5m)
 	// Key: base64(signature), Value: bool
 	replayCache = expirable.NewLRU[string, bool](2000, nil, 5*time.Minute)
+
+	// identityCheckCache avoids redundant user/membership existence and permission checks (TTL 1m)
+	// Key: userID:orgID:role:isRoot, Value: bool (valid)
+	identityCheckCache = expirable.NewLRU[string, bool](1000, nil, 1*time.Minute)
 )
 
 // PurgeCaches clears all in-memory caches used by the middleware.
@@ -36,6 +40,7 @@ func PurgeCaches() {
 	signingKeyCache.Purge()
 	sessionCache.Purge()
 	replayCache.Purge()
+	identityCheckCache.Purge()
 }
 
 // TokenContext represents the token-related data stored in the context for external services
@@ -97,6 +102,7 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		requesterID = tokenParts[0]
 		timestampStr = tokenParts[1]
 		signature = tokenParts[2]
+		log.Warn("External service is using deprecated token format (no nonce)", "requester_id", requesterID)
 	}
 
 	// 1. Replay Protection: Check if this signature has been seen recently
@@ -240,32 +246,40 @@ func handleUserIdentity(c *gin.Context, token string) {
 	// Identity Consistency Check: Verify the identity data in the JWT is still valid.
 	// This prevents "Identity Staleness" where a demoted user still has root/admin access.
 	if claims.Subject != "" {
-		// 1. Verify Global Root Status
-		user, err := repository.Repo.User.FindByID(c.Request.Context(), claims.Subject, nil)
-		if err != nil || user == nil {
-			response.UnauthorizedResponse(c, nil, "Unauthorized: User not found")
-			c.Abort()
-			return
-		}
-		if user.IsRoot != claims.IsRoot {
-			response.UnauthorizedResponse(c, nil, "Unauthorized: Identity has changed")
-			c.Abort()
-			return
-		}
+		// Cache Key: userId:orgId:role:isRoot
+		cacheKey := claims.Subject + ":" + claims.OrgID + ":" + claims.Role + ":" + strconv.FormatBool(claims.IsRoot)
 
-		// 2. Verify Org-Specific Role (if not root)
-		if !user.IsRoot && claims.OrgID != "" {
-			membership, err := repository.Repo.Membership.FindByUserAndOrg(c.Request.Context(), claims.Subject, claims.OrgID)
-			if err != nil || membership == nil {
-				response.UnauthorizedResponse(c, nil, "Unauthorized: No access to organization")
+		if _, ok := identityCheckCache.Get(cacheKey); !ok {
+			// 1. Verify Global Root Status
+			user, err := repository.Repo.User.FindByID(c.Request.Context(), claims.Subject, nil)
+			if err != nil || user == nil {
+				response.UnauthorizedResponse(c, nil, "Unauthorized: User not found")
 				c.Abort()
 				return
 			}
-			if membership.Role != claims.Role {
-				response.UnauthorizedResponse(c, nil, "Unauthorized: Permissions have changed")
+			if user.IsRoot != claims.IsRoot {
+				response.UnauthorizedResponse(c, nil, "Unauthorized: Identity has changed")
 				c.Abort()
 				return
 			}
+
+			// 2. Verify Org-Specific Role (if not root)
+			if !user.IsRoot && claims.OrgID != "" {
+				membership, err := repository.Repo.Membership.FindByUserAndOrg(c.Request.Context(), claims.Subject, claims.OrgID)
+				if err != nil || membership == nil {
+					response.UnauthorizedResponse(c, nil, "Unauthorized: No access to organization")
+					c.Abort()
+					return
+				}
+				if membership.Role != claims.Role {
+					response.UnauthorizedResponse(c, nil, "Unauthorized: Permissions have changed")
+					c.Abort()
+					return
+				}
+			}
+
+			// Store success in cache for 1m
+			identityCheckCache.Add(cacheKey, true)
 		}
 	}
 

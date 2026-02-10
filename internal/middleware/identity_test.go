@@ -122,6 +122,7 @@ func TestAuthMiddleware_IdentityConsistency(t *testing.T) {
 
 	// 4. DEMOTE user in DB (remove root)
 	db.Model(&user).Update("is_root", false)
+	PurgeCaches()
 
 	// 5. Verify token is now REJECTED
 	w2 := httptest.NewRecorder()
@@ -173,6 +174,7 @@ func TestAuthMiddleware_RoleConsistency(t *testing.T) {
 
 	// DEMOTE role in DB
 	db.Model(&membership).Where("user_id = ? AND org_id = ?", user.ID, orgID).Update("role", "viewer")
+	PurgeCaches()
 
 	// Verify rejected
 	w2 := httptest.NewRecorder()
