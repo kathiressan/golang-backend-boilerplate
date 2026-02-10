@@ -12,53 +12,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
 // formatValidationErrors converts validator errors into a user-friendly format
 func formatValidationErrors(err error) map[string]string {
-	validationErrors := make(map[string]string)
-
-	if validationErrs, ok := err.(validator.ValidationErrors); ok {
-		for _, e := range validationErrs {
-			fieldName := e.Field()
-
-			switch e.Tag() {
-			case "required":
-				validationErrors[fieldName] = "This field is required"
-			case "email":
-				validationErrors[fieldName] = "Must be a valid email address"
-			case "min":
-				if e.Kind() == reflect.String {
-					validationErrors[fieldName] = "Must be at least " + e.Param() + " characters"
-				} else {
-					validationErrors[fieldName] = "Value must be at least " + e.Param()
-				}
-			case "max":
-				if e.Kind() == reflect.String {
-					validationErrors[fieldName] = "Must be no more than " + e.Param() + " characters"
-				} else {
-					validationErrors[fieldName] = "Value must be no more than " + e.Param()
-				}
-			case "url":
-				validationErrors[fieldName] = "Must be a valid URL"
-			case "oneof":
-				validationErrors[fieldName] = "Must be one of [" + strings.ReplaceAll(e.Param(), " ", " | ") + "]"
-			case "len":
-				validationErrors[fieldName] = "Length must be exactly " + e.Param()
-			case "alphanum":
-				validationErrors[fieldName] = "Must contain only letters and numbers"
-			case "numeric":
-				validationErrors[fieldName] = "Must be a valid number"
-			default:
-				validationErrors[fieldName] = "Invalid value (failed " + e.Tag() + ")"
-			}
-		}
-	} else {
-		validationErrors["general"] = err.Error()
-	}
-
-	return validationErrors
+	registry := validatorHelper.GetFormatterRegistry()
+	return registry.FormatAll(err)
 }
 
 // endPointFunc is a factory function that creates a Gin handler function for each route
