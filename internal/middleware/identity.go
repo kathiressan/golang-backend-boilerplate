@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	config "ovmsa-be/configs"
@@ -84,6 +85,16 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Otherwise, handle as standard user JWT
 		handleUserIdentity(c, token)
+		
+		// Add identity to request context for RLS (if it exists)
+		if identity, exists := c.Get("identity"); exists {
+			if id, ok := identity.(*entities.Identity); ok {
+				// Update the request context with identity for database operations
+				ctx := context.WithValue(c.Request.Context(), "identity", id)
+				c.Request = c.Request.WithContext(ctx)
+			}
+		}
+		
 		c.Next()
 	}
 }
