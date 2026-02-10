@@ -14,11 +14,12 @@ import (
 
 // UserIdentity contains the core identity data for token generation
 type UserIdentity struct {
-	UserID  string
-	OrgID   string
-	OrgPath string
-	Role    string
-	IsRoot  bool
+	UserID    string
+	SessionID string
+	OrgID     string
+	OrgPath   string
+	Role      string
+	IsRoot    bool
 }
 
 // TokenClaims represents the JWT claims for access tokens
@@ -35,6 +36,11 @@ func (c *TokenClaims) AccessUserID() string {
 	return c.Subject
 }
 
+// AccessSessionID returns the session ID from the ID (jti) claim
+func (c *TokenClaims) AccessSessionID() string {
+	return c.ID
+}
+
 // Create a new JWT access token with user and organization context
 func GenerateAccessToken(identity UserIdentity) (string, error) {
 	cfg := config.GetConfig()
@@ -47,6 +53,7 @@ func GenerateAccessToken(identity UserIdentity) (string, error) {
 		IsRoot:  identity.IsRoot,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   identity.UserID,
+			ID:        identity.SessionID,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(cfg.AccessTokenExpiryMinutes))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			// Set NotBefore to 1 minute in the past to handle slight clock skew

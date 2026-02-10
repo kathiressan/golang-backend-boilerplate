@@ -54,11 +54,12 @@ func TestGenerateAndValidateAccessTokenHS256(t *testing.T) {
 	config.ResetConfigForTest()
 	
 	identity := UserIdentity{
-		UserID:  "user-123",
-		OrgID:   "org-456",
-		OrgPath: "/org/456",
-		Role:    "admin",
-		IsRoot:  true,
+		UserID:    "user-123",
+		SessionID: "sess-999",
+		OrgID:     "org-456",
+		OrgPath:   "/org/456",
+		Role:      "admin",
+		IsRoot:    true,
 	}
 
 	token, err := GenerateAccessToken(identity)
@@ -69,6 +70,7 @@ func TestGenerateAndValidateAccessTokenHS256(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
 	assert.Equal(t, identity.UserID, claims.AccessUserID())
+	assert.Equal(t, identity.SessionID, claims.AccessSessionID())
 	assert.Equal(t, identity.OrgID, claims.OrgID)
 	assert.Equal(t, identity.Role, claims.Role)
 	
@@ -88,11 +90,12 @@ func TestGenerateAndValidateAccessTokenRS256(t *testing.T) {
 	}() // Reset
 
 	identity := UserIdentity{
-		UserID:  "user-rs256",
-		OrgID:   "org-rs256",
-		OrgPath: "/rs256",
-		Role:    "superuser",
-		IsRoot:  true,
+		UserID:    "user-rs256",
+		SessionID: "sess-rs256",
+		OrgID:     "org-rs256",
+		OrgPath:   "/rs256",
+		Role:      "superuser",
+		IsRoot:    true,
 	}
 
 	token, err := GenerateAccessToken(identity)
@@ -103,6 +106,7 @@ func TestGenerateAndValidateAccessTokenRS256(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, claims)
 	assert.Equal(t, identity.UserID, claims.AccessUserID())
+	assert.Equal(t, identity.SessionID, claims.AccessSessionID())
 	assert.Equal(t, identity.OrgID, claims.OrgID)
 }
 
