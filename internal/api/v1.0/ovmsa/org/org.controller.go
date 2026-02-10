@@ -4,6 +4,7 @@ import (
 	"errors"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/services/org"
+	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +32,11 @@ func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayl
 	// Create organization
 	result, err := orgService.CreateOrganization(ctx.Request.Context(), req.Name, req.ParentID, tier)
 	if err != nil {
+		if errors.Is(err, org.ErrOrganizationAlreadyExists) {
+			response.ConflictResponse(ctx, err, err.Error())
+			ctx.Abort()
+			return nil, nil, nil
+		}
 		return nil, err, nil
 	}
 

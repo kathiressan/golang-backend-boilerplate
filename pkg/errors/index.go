@@ -159,6 +159,13 @@ func NotFound(err error, message string) *AppError {
 	return New(err, http.StatusNotFound, "NOT_FOUND", message, "NotFoundError")
 }
 
+// Conflict creates a 409 Conflict error
+// Use when a request conflicts with the current state of the server
+// Example: Conflict(err, "User with this email already exists")
+func Conflict(err error, message string) *AppError {
+	return New(err, http.StatusConflict, "CONFLICT", message, "ConflictError")
+}
+
 // InternalServerError creates a 500 Internal Server Error
 // Use for unexpected server-side errors that aren't the client's fault
 // Example: InternalServerError(err, "Database connection failed")

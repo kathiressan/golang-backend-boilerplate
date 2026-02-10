@@ -135,6 +135,17 @@ func NotFoundResponse(c *gin.Context, err error, msg string) {
 	Error(c, appErr)
 }
 
+// ConflictResponse returns a 409 Conflict response
+// This helper function creates a standardized conflict error response
+// Parameters:
+// - c: The Gin context
+// - err: The underlying error
+// - msg: A human-readable error message
+func ConflictResponse(c *gin.Context, err error, msg string) {
+	appErr := appErrors.Conflict(err, msg)
+	Error(c, appErr)
+}
+
 // ValidationErrorResponse returns a 422 Validation Error response
 // This helper function creates a standardized validation error response
 // Parameters:
