@@ -4,6 +4,7 @@ import (
 	"ovmsa-be/internal/api/v1.0/ovmsa/auth"
 	"ovmsa-be/internal/api/v1.0/ovmsa/health"
 	"ovmsa-be/internal/api/v1.0/ovmsa/org"
+	"ovmsa-be/internal/services"
 	authService "ovmsa-be/internal/services/auth"
 	orgService "ovmsa-be/internal/services/org"
 	"ovmsa-be/pkg/helpers"
@@ -11,114 +12,50 @@ import (
 
 // ControllerFactory creates and configures controllers with their dependencies
 type ControllerFactory struct {
-	authService *authService.AuthService
-	orgService  *orgService.OrganizationService
+	services *services.Services
 }
 
 // NewControllerFactory creates a new controller factory with the given services
-func NewControllerFactory(authSvc *authService.AuthService, orgSvc *orgService.OrganizationService) *ControllerFactory {
+func NewControllerFactory(svc *services.Services) *ControllerFactory {
 	return &ControllerFactory{
-		authService: authSvc,
-		orgService:  orgSvc,
+		services: svc,
 	}
 }
 
-// AuthController provides auth-related handlers with dependency injection
-type AuthController struct {
-	service    *authService.AuthService
-	errorChain *helpers.ErrorHandlerChain
+// PrepareAuthChain initializes the error handler chain for auth errors
+func (f *ControllerFactory) PrepareAuthChain() *helpers.ErrorHandlerChain {
+	return helpers.NewErrorHandlerChain().
+		Add(helpers.NewSpecificErrorHandler(authService.ErrInvalidCredentials, 401, "Invalid email or password")).
+		Add(helpers.NewSpecificErrorHandler(authService.ErrNoOrganizationAccess, 403, "User has no organization access")).
+		Add(helpers.NewSpecificErrorHandler(authService.ErrSessionNotFound, 404, "Session not found")).
+		Add(helpers.NewSpecificErrorHandler(authService.ErrInvalidRefreshToken, 401, "Invalid or expired refresh token")).
+		Add(helpers.NewSpecificErrorHandler(authService.ErrUserNotFound, 404, "User not found"))
 }
 
-// NewAuthController creates a new auth controller with its dependencies
-func (f *ControllerFactory) NewAuthController() *AuthController {
-	// Initialize error handler chain for auth errors
-	errorChain := helpers.NewErrorHandlerChain()
-	errorChain.Add(helpers.NewSpecificErrorHandler(authService.ErrInvalidCredentials, 401, "Invalid email or password"))
-	errorChain.Add(helpers.NewSpecificErrorHandler(authService.ErrNoOrganizationAccess, 403, "User has no organization access"))
-	errorChain.Add(helpers.NewSpecificErrorHandler(authService.ErrSessionNotFound, 404, "Session not found"))
-	errorChain.Add(helpers.NewSpecificErrorHandler(authService.ErrInvalidRefreshToken, 401, "Invalid or expired refresh token"))
-	errorChain.Add(helpers.NewSpecificErrorHandler(authService.ErrUserNotFound, 404, "User not found"))
-
-	return &AuthController{
-		service:    f.authService,
-		errorChain: errorChain,
-	}
+// PrepareOrgChain initializes the error handler chain for org errors
+func (f *ControllerFactory) PrepareOrgChain() *helpers.ErrorHandlerChain {
+	return helpers.NewErrorHandlerChain().
+		Add(helpers.NewSpecificErrorHandler(orgService.ErrOrganizationAlreadyExists, 409, "Organization with this name already exists at this level"))
 }
 
-// GetService returns the auth service (for backward compatibility with existing handlers)
-func (c *AuthController) GetService() *authService.AuthService {
-	return c.service
-}
-
-// GetErrorChain returns the error handler chain
-func (c *AuthController) GetErrorChain() *helpers.ErrorHandlerChain {
-	return c.errorChain
-}
-
-// OrgController provides organization-related handlers with dependency injection
-type OrgController struct {
-	service    *orgService.OrganizationService
-	errorChain *helpers.ErrorHandlerChain
-}
-
-// NewOrgController creates a new org controller with its dependencies
-func (f *ControllerFactory) NewOrgController() *OrgController {
-	// Initialize error handler chain for org errors
-	errorChain := helpers.NewErrorHandlerChain()
-	errorChain.Add(helpers.NewSpecificErrorHandler(orgService.ErrOrganizationAlreadyExists, 409, "Organization with this name already exists at this level"))
-
-	return &OrgController{
-		service:    f.orgService,
-		errorChain: errorChain,
-	}
-}
-
-// GetService returns the org service (for backward compatibility with existing handlers)
-func (c *OrgController) GetService() *orgService.OrganizationService {
-	return c.service
-}
-
-// GetErrorChain returns the error handler chain
-func (c *OrgController) GetErrorChain() *helpers.ErrorHandlerChain {
-	return c.errorChain
-}
-
-// HealthController provides health-related handlers with dependency injection
-type HealthController struct {
-	errorChain *helpers.ErrorHandlerChain
-}
-
-// NewHealthController creates a new health controller with its dependencies
-func (f *ControllerFactory) NewHealthController() *HealthController {
-	// Initialize error handler chain for health errors
-	errorChain := helpers.NewErrorHandlerChain()
-
-	return &HealthController{
-		errorChain: errorChain,
-	}
-}
-
-// GetErrorChain returns the error handler chain
-func (c *HealthController) GetErrorChain() *helpers.ErrorHandlerChain {
-	return c.errorChain
+// PrepareHealthChain initializes the error handler chain for health errors
+func (f *ControllerFactory) PrepareHealthChain() *helpers.ErrorHandlerChain {
+	return helpers.NewErrorHandlerChain()
 }
 
 // InitializeControllersWithFactory initializes controllers using the factory pattern
 // This replaces the old SetXXXService pattern with proper dependency injection
-func InitializeControllersWithFactory(authSvc *authService.AuthService, orgSvc *orgService.OrganizationService) {
-	factory := NewControllerFactory(authSvc, orgSvc)
-	
-	// Initialize auth controller
-	authCtrl := factory.NewAuthController()
-	auth.SetAuthService(authCtrl.GetService())
-	auth.SetAuthErrorChain(authCtrl.GetErrorChain())
-	
-	// Initialize org controller
-	orgCtrl := factory.NewOrgController()
-	org.SetOrganizationService(orgCtrl.GetService())
-	org.SetOrgErrorChain(orgCtrl.GetErrorChain())
+func InitializeControllersWithFactory(svc *services.Services) {
+	factory := NewControllerFactory(svc)
 
-	// Initialize health controller
-	healthCtrl := factory.NewHealthController()
-	health.SetHealthErrorChain(healthCtrl.GetErrorChain())
+	// Initialize auth module
+	auth.SetAuthService(svc.Auth)
+	auth.SetAuthErrorChain(factory.PrepareAuthChain())
+
+	// Initialize org module
+	org.SetOrganizationService(svc.Organization)
+	org.SetOrgErrorChain(factory.PrepareOrgChain())
+
+	// Initialize health module
+	health.SetHealthErrorChain(factory.PrepareHealthChain())
 }

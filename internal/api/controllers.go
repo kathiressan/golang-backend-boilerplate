@@ -8,5 +8,5 @@ import (
 // This is called once during application startup
 func InitializeControllers(svc *services.Services) {
 	// Use factory pattern for better dependency injection
-	InitializeControllersWithFactory(svc.Auth, svc.Organization)
+	InitializeControllersWithFactory(svc)
 }
