@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	config "ovmsa-be/configs"
 	"ovmsa-be/internal/entities"
 
 	"gorm.io/gorm"
@@ -24,6 +25,7 @@ var Migrations = []MigrationStep{
 				&entities.Membership{},
 				&entities.OrgGrant{},
 				&entities.Session{},
+				&entities.SigningKey{},
 			); err != nil {
 				return err
 			}
@@ -55,6 +57,34 @@ var Migrations = []MigrationStep{
 				IsRoot:       true,                                                            // Global System Admin
 			}
 			return tx.Create(adminUser).Error
+		},
+	},
+	{
+		Version: "v1.0.2-seed-initial-signing-key",
+		Action: func(tx *gorm.DB) error {
+			// Seed initial key from environment variables if they exist
+			// This provides a smooth transition from env-based to db-based keys.
+			cfg := config.GetConfig()
+
+			initialKey := &entities.SigningKey{
+				Version:   "v1",
+				Algorithm: cfg.JWTSigningMethod,
+				IsActive:  true,
+			}
+
+			if cfg.JWTSigningMethod == "RS256" {
+				initialKey.KeyData = cfg.JWTPrivateKey
+				initialKey.PublicKey = cfg.JWTPublicKey
+			} else {
+				initialKey.KeyData = cfg.JWTSecret
+			}
+
+			if initialKey.KeyData == "" {
+				// No key in env, just skip seeding
+				return nil
+			}
+
+			return tx.Create(initialKey).Error
 		},
 	},
 }

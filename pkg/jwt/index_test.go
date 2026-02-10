@@ -143,3 +143,37 @@ func TestHashToken(t *testing.T) {
 	hash := HashToken(token)
 	assert.Equal(t, hash, HashToken(token))
 }
+
+func TestGenerateAndValidateAccessTokenWithDBKey(t *testing.T) {
+	// Simulate a database-backed key
+	dbKey := &JWTKey{
+		ID:        "v2-key",
+		Algorithm: "HS256",
+		KeyData:   []byte("db-secret-key"),
+	}
+
+	identity := UserIdentity{
+		UserID:    "db-user",
+		SessionID: "db-sess",
+	}
+
+	// 1. Generate with DB key
+	token, err := GenerateAccessToken(identity, dbKey)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, token)
+
+	// 2. Validate with Lookup function
+	lookup := func(keyID string) (*JWTKey, error) {
+		if keyID == dbKey.ID {
+			return dbKey, nil
+		}
+		return nil, nil
+	}
+
+	claims, err := ValidateAccessToken(token, lookup)
+	assert.NoError(t, err)
+	assert.NotNil(t, claims)
+	assert.Equal(t, identity.UserID, claims.AccessUserID())
+	assert.Equal(t, dbKey.ID, claims.KeyID)
+}
+

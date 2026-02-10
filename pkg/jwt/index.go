@@ -28,6 +28,7 @@ type TokenClaims struct {
 	OrgPath string `json:"org_path"`
 	Role    string `json:"role"`
 	IsRoot  bool   `json:"is_root"`
+	KeyID   string `json:"kid,omitempty"` // Version of the signing key
 	jwt.RegisteredClaims
 }
 
@@ -41,8 +42,17 @@ func (c *TokenClaims) AccessSessionID() string {
 	return c.ID
 }
 
-// Create a new JWT access token with user and organization context
-func GenerateAccessToken(identity UserIdentity) (string, error) {
+// JWTKey represents the key data used for signing/validation
+type JWTKey struct {
+	ID        string
+	Algorithm string
+	KeyData   []byte // Secret for HMAC, Private Key PEM for RSA
+	PublicKey []byte // Public Key PEM for RSA
+}
+
+// GenerateAccessToken creates a new JWT access token.
+// If jwtKey is provided, it uses that key for signing; otherwise, it falls back to config.
+func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, error) {
 	cfg := config.GetConfig()
 
 	// Create claims with expiry and leeway for clock skew
@@ -66,15 +76,32 @@ func GenerateAccessToken(identity UserIdentity) (string, error) {
 	var key any
 	var err error
 
-	if cfg.JWTSigningMethod == "RS256" {
-		method = jwt.SigningMethodRS256
-		key, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(cfg.JWTPrivateKey))
-		if err != nil {
-			return "", fmt.Errorf("failed to parse private key: %w", err)
+	// Determine signing method and key
+	if len(jwtKey) > 0 && jwtKey[0] != nil {
+		k := jwtKey[0]
+		claims.KeyID = k.ID
+		if k.Algorithm == "RS256" {
+			method = jwt.SigningMethodRS256
+			key, err = jwt.ParseRSAPrivateKeyFromPEM(k.KeyData)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse private key: %w", err)
+			}
+		} else {
+			method = jwt.SigningMethodHS256
+			key = k.KeyData
 		}
 	} else {
-		method = jwt.SigningMethodHS256
-		key = []byte(cfg.JWTSecret)
+		// Fallback to Config
+		if cfg.JWTSigningMethod == "RS256" {
+			method = jwt.SigningMethodRS256
+			key, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(cfg.JWTPrivateKey))
+			if err != nil {
+				return "", fmt.Errorf("failed to parse private key from config: %w", err)
+			}
+		} else {
+			method = jwt.SigningMethodHS256
+			key = []byte(cfg.JWTSecret)
+		}
 	}
 
 	// Create token with claims
@@ -89,12 +116,40 @@ func GenerateAccessToken(identity UserIdentity) (string, error) {
 	return tokenString, nil
 }
 
-// Validate and parse a JWT access token
-func ValidateAccessToken(tokenString string) (*TokenClaims, error) {
+// KeyLookupFunc is a callback to fetch a key by its ID (kid)
+type KeyLookupFunc func(keyID string) (*JWTKey, error)
+
+// ValidateAccessToken parses and validates a JWT token.
+// If lookup is provided, it uses it to find the key by kid; otherwise, it falls back to config.
+func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenClaims, error) {
 	cfg := config.GetConfig()
 
 	// Parse token
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (any, error) {
+		claims, ok := token.Claims.(*TokenClaims)
+		if !ok {
+			return nil, errors.New("invalid token claims during key lookup")
+		}
+
+		// Use lookup function if provided and kid is present
+		if len(lookup) > 0 && lookup[0] != nil && claims.KeyID != "" {
+			k, err := lookup[0](claims.KeyID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to lookup key %s: %w", claims.KeyID, err)
+			}
+			if k.Algorithm == "RS256" {
+				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return jwt.ParseRSAPublicKeyFromPEM(k.PublicKey)
+			}
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return k.KeyData, nil
+		}
+
+		// Fallback to Config
 		if cfg.JWTSigningMethod == "RS256" {
 			// Verify signing method
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -109,6 +164,7 @@ func ValidateAccessToken(tokenString string) (*TokenClaims, error) {
 		}
 		return []byte(cfg.JWTSecret), nil
 	})
+
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)

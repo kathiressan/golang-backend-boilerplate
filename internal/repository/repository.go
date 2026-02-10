@@ -11,6 +11,7 @@ type Repositories struct {
 	Session      *SessionRepository
 	Organization *OrganizationRepository
 	OrgGrant     *OrgGrantRepository
+	SigningKey   *SigningKeyRepository
 }
 
 // NewRepositories creates and initializes all repositories
@@ -21,6 +22,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Session:      NewSessionRepository(db),
 		Organization: NewOrganizationRepository(db),
 		OrgGrant:     NewOrgGrantRepository(db),
+		SigningKey:   NewSigningKeyRepository(db),
 	}
 }
 
