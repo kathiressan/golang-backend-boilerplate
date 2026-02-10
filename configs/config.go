@@ -34,10 +34,14 @@ type Config struct {
 	IdleTimeoutSeconds  int
 
 	// Security settings
-	JWTSecret      string
-	JWTExpiryHours int
-	TrustedProxies []string
-	AllowedOrigins []string
+	JWTSigningMethod         string
+	JWTSecret                string
+	JWTPrivateKey            string
+	JWTPublicKey             string
+	AccessTokenExpiryMinutes int
+	RefreshTokenExpiryDays   int
+	TrustedProxies           []string
+	AllowedOrigins           []string
 
 	// Database settings
 	DBHost      string
@@ -137,20 +141,44 @@ func loadConfig() (*Config, error) {
 	}
 
 	// Load JWT settings
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" && environment == "production" {
-		return nil, fmt.Errorf("JWT_SECRET must be set in production")
-	}
-	if jwtSecret == "" {
-		jwtSecret = "default-jwt-secret-for-dev-only" // Default for non-production
+	jwtSigningMethod := os.Getenv("JWT_SIGNING_METHOD")
+	if jwtSigningMethod == "" {
+		jwtSigningMethod = "HS256" // Default to HS256
 	}
 
-	jwtExpiryStr := os.Getenv("JWT_EXPIRY_HOURS")
-	jwtExpiryHours := 24 // Default to 24 hours
-	if jwtExpiryStr != "" {
-		jwtExpiryHours, err = strconv.Atoi(jwtExpiryStr)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSigningMethod == "HS256" {
+		if jwtSecret == "" && environment == "production" {
+			return nil, fmt.Errorf("JWT_SECRET must be set in production for HS256")
+		}
+		if jwtSecret == "" {
+			jwtSecret = "default-jwt-secret-for-dev-only"
+		}
+	}
+
+	jwtPrivateKey := os.Getenv("JWT_PRIVATE_KEY")
+	jwtPublicKey := os.Getenv("JWT_PUBLIC_KEY")
+	if jwtSigningMethod == "RS256" {
+		if (jwtPrivateKey == "" || jwtPublicKey == "") && environment == "production" {
+			return nil, fmt.Errorf("JWT_PRIVATE_KEY and JWT_PUBLIC_KEY must be set in production for RS256")
+		}
+	}
+
+	accessTokenExpiryStr := os.Getenv("ACCESS_TOKEN_EXPIRY_MINUTES")
+	accessTokenExpiryMinutes := 60 // Default to 60 minutes
+	if accessTokenExpiryStr != "" {
+		accessTokenExpiryMinutes, err = strconv.Atoi(accessTokenExpiryStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JWT_EXPIRY_HOURS value: %s. Must be a number", jwtExpiryStr)
+			return nil, fmt.Errorf("invalid ACCESS_TOKEN_EXPIRY_MINUTES value: %s", accessTokenExpiryStr)
+		}
+	}
+
+	refreshTokenExpiryStr := os.Getenv("REFRESH_TOKEN_EXPIRY_DAYS")
+	refreshTokenExpiryDays := 30 // Default to 30 days
+	if refreshTokenExpiryStr != "" {
+		refreshTokenExpiryDays, err = strconv.Atoi(refreshTokenExpiryStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid REFRESH_TOKEN_EXPIRY_DAYS value: %s", refreshTokenExpiryStr)
 		}
 	}
 
@@ -227,10 +255,14 @@ func loadConfig() (*Config, error) {
 		IdleTimeoutSeconds:  idleTimeout,
 
 		// Security settings
-		JWTSecret:      jwtSecret,
-		JWTExpiryHours: jwtExpiryHours,
-		TrustedProxies: trustedProxies,
-		AllowedOrigins: allowedOrigins,
+		JWTSigningMethod:         jwtSigningMethod,
+		JWTSecret:                jwtSecret,
+		JWTPrivateKey:            jwtPrivateKey,
+		JWTPublicKey:             jwtPublicKey,
+		AccessTokenExpiryMinutes: accessTokenExpiryMinutes,
+		RefreshTokenExpiryDays:   refreshTokenExpiryDays,
+		TrustedProxies:           trustedProxies,
+		AllowedOrigins:           allowedOrigins,
 
 		// Database
 		DBHost:      dbHost,
@@ -256,4 +288,11 @@ func GetConfig() *Config {
 
 func IsProduction() bool {
 	return GetConfig().Environment == "production"
+}
+
+// ResetConfigForTest clears the singleton config, allowing it to be reloaded.
+// This should ONLY be used in unit tests.
+func ResetConfigForTest() {
+	config = nil
+	once = sync.Once{}
 }

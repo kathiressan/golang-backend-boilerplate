@@ -12,40 +12,69 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// UserIdentity contains the core identity data for token generation
+type UserIdentity struct {
+	UserID  string
+	OrgID   string
+	OrgPath string
+	Role    string
+	IsRoot  bool
+}
+
 // TokenClaims represents the JWT claims for access tokens
 type TokenClaims struct {
-	UserID string `json:"user_id"`
-	OrgID string `json:"org_id"`
+	OrgID   string `json:"org_id"`
 	OrgPath string `json:"org_path"`
-	Role string `json:"role"`
-	IsRoot bool `json:"is_root"`
+	Role    string `json:"role"`
+	IsRoot  bool   `json:"is_root"`
 	jwt.RegisteredClaims
 }
 
+// AccessUserID returns the user ID from the Subject claim
+func (c *TokenClaims) AccessUserID() string {
+	return c.Subject
+}
+
 // Create a new JWT access token with user and organization context
-func GenerateAccessToken(userID, orgID, orgPath, role string, isRoot bool) (string, error) {
+func GenerateAccessToken(identity UserIdentity) (string, error) {
 	cfg := config.GetConfig()
 
-	// Create claims with expiry
+	// Create claims with expiry and leeway for clock skew
 	claims := TokenClaims{
-		UserID:  userID,
-		OrgID:   orgID,
-		OrgPath: orgPath,
-		Role:    role,
-		IsRoot:  isRoot,
+		OrgID:   identity.OrgID,
+		OrgPath: identity.OrgPath,
+		Role:    identity.Role,
+		IsRoot:  identity.IsRoot,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(cfg.JWTExpiryHours))),
+			Subject:   identity.UserID,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(cfg.AccessTokenExpiryMinutes))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			// Set NotBefore to 1 minute in the past to handle slight clock skew
+			NotBefore: jwt.NewNumericDate(time.Now().Add(-1 * time.Minute)),
 			Issuer:    cfg.AppName,
 		},
 	}
 
-	// Create token with claims
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	var method jwt.SigningMethod
+	var key any
+	var err error
 
-	// Sign token with secret
-	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+	if cfg.JWTSigningMethod == "RS256" {
+		method = jwt.SigningMethodRS256
+		key, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(cfg.JWTPrivateKey))
+		if err != nil {
+			return "", fmt.Errorf("failed to parse private key: %w", err)
+		}
+	} else {
+		method = jwt.SigningMethodHS256
+		key = []byte(cfg.JWTSecret)
+	}
+
+	// Create token with claims
+	token := jwt.NewWithClaims(method, claims)
+
+	// Sign token
+	tokenString, err := token.SignedString(key)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -59,11 +88,18 @@ func ValidateAccessToken(tokenString string) (*TokenClaims, error) {
 
 	// Parse token
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (any, error) {
-		// Verify signing method
+		if cfg.JWTSigningMethod == "RS256" {
+			// Verify signing method
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return jwt.ParseRSAPublicKeyFromPEM([]byte(cfg.JWTPublicKey))
+		}
+
+		// Default to HS256
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
 		return []byte(cfg.JWTSecret), nil
 	})
 
