@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	log "ovmsa-be/pkg/logger"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -260,11 +262,11 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 		if len(claims.Audience) > 0 {
 			if !slices.Contains(claims.Audience, cfg.AppName) {
 				// Log warning but don't reject
-				fmt.Printf("WARNING: Token audience mismatch: expected %s, got %v. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.\n", cfg.AppName, claims.Audience)
+				log.Warn(fmt.Sprintf("Token audience mismatch: expected %s, got %v. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.", cfg.AppName, claims.Audience))
 			}
 		} else if cfg.AppName != "" {
 			// Log warning for missing audience
-			fmt.Printf("WARNING: Token missing audience claim. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.\n")
+			log.Warn("Token missing audience claim. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.")
 		}
 	}
 

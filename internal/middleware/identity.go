@@ -109,7 +109,6 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		c.Abort()
 		return
 	}
-	replayCache.Add(signature, true)
 
 	// 2. Lookup Requester
 	requester, exists := config.ValidRequesters[requesterID]
@@ -147,6 +146,9 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		c.Abort()
 		return
 	}
+
+	// 5. Add to Replay Cache (AFTER validation)
+	replayCache.Add(signature, true)
 
 	// Store validated context
 	c.Set("tokenContext", TokenContext{
@@ -245,8 +247,8 @@ func handleUserIdentity(c *gin.Context, token string) {
 	// Identity Consistency Check: Verify the identity data in the JWT is still valid.
 	// This prevents "Identity Staleness" where a demoted user still has root/admin access.
 	if claims.Subject != "" {
-		// Cache Key: userId:orgId:role:isRoot
-		cacheKey := claims.Subject + ":" + claims.OrgID + ":" + claims.Role + ":" + strconv.FormatBool(claims.IsRoot)
+		// Cache Key: userId|orgId|role|isRoot
+		cacheKey := claims.Subject + "|" + claims.OrgID + "|" + claims.Role + "|" + strconv.FormatBool(claims.IsRoot)
 
 		if _, ok := identityCheckCache.Get(cacheKey); !ok {
 			// 1. Verify Global Root Status
