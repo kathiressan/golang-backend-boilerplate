@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"sync"
+	"time"
+
 	config "ovmsa-be/configs"
 	"ovmsa-be/pkg/response"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/golang-lru/v2/expirable"
@@ -11,7 +13,8 @@ import (
 
 // rateLimitEntry tracks request count and window start time for an IP
 type rateLimitEntry struct {
-	count      int
+	mu          sync.Mutex
+	count       int
 	windowStart time.Time
 }
 
@@ -41,7 +44,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		if !exists {
 			// First request from this IP in the current window
 			entry = &rateLimitEntry{
-				count:      1,
+				count:       1,
 				windowStart: now,
 			}
 			rateLimitCache.Add(clientIP, entry)
@@ -49,12 +52,14 @@ func RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		entry.mu.Lock()
+		defer entry.mu.Unlock()
+
 		// Check if we're still in the same 1-minute window
 		if now.Sub(entry.windowStart) > 1*time.Minute {
 			// New window, reset counter
 			entry.count = 1
 			entry.windowStart = now
-			rateLimitCache.Add(clientIP, entry)
 			c.Next()
 			return
 		}
@@ -69,8 +74,6 @@ func RateLimitMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Update cache with new count
-		rateLimitCache.Add(clientIP, entry)
 		c.Next()
 	}
 }
