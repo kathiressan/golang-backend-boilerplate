@@ -51,14 +51,16 @@ func CORSMiddleware() gin.HandlerFunc {
 			// Set the allowed origin header if the origin is permitted
 			if allowed {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				// Allow-Credentials is only meaningful (and safe to send) when a
+				// specific, permitted origin is reflected — not for unmatched origins.
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
 		}
 
-		// Set CORS headers
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")                                                                                                                    // Allow credentials (cookies, etc.)
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With") // Allowed request headers
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")                                                                                      // Allowed HTTP methods
-		c.Writer.Header().Set("Access-Control-Max-Age", "86400")                                                                                                                             // Cache preflight results for 24 hours
+		// Set remaining CORS headers (non-origin-specific)
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
 
 		// Add security headers to protect against common web vulnerabilities
 		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")                                // Prevent MIME type sniffing
