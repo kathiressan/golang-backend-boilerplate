@@ -118,8 +118,11 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	nonce := tokenParts[2]
 	signature := tokenParts[3]
 
-	// 1. Replay Protection: Check if this signature has been seen recently
-	if _, seen := replayCache.Get(signature); seen {
+	// 1. Replay Protection: Check if this canonical message has been seen recently.
+	// Key on the full message (requesterID:timestamp:nonce) rather than just the
+	// signature, since a bare HMAC output is not a reliable unique fingerprint.
+	replayKey := requesterID + ":" + timestampStr + ":" + nonce
+	if _, seen := replayCache.Get(replayKey); seen {
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Replay detected")
 		c.Abort()
 		return
@@ -163,7 +166,7 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	}
 
 	// 5. Add to Replay Cache (AFTER validation)
-	replayCache.Add(signature, true)
+	replayCache.Add(replayKey, true)
 
 	// Store validated context
 	c.Set("tokenContext", TokenContext{
