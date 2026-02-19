@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"ovmsa-be/internal/entities"
 	"ovmsa-be/internal/middleware"
@@ -142,7 +143,7 @@ func registerRoute(router *gin.RouterGroup, path string, method string, handler 
 	case "OPTIONS":
 		router.OPTIONS(path, handler)
 	default:
-		router.GET(path, handler)
+		panic(fmt.Sprintf("registerRoute: unsupported HTTP method %q for path %q", method, path))
 	}
 }
 
