@@ -13,8 +13,8 @@ var strictPolicy = bluemonday.StrictPolicy()
 // It uses the bluemonday library to strip potentially dangerous HTML/Script tags.
 func XSSSanitizer() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Content-Type Check (Simple)
-		if (c.Request.Method == "POST" || c.Request.Method == "PUT") &&
+		// 1. Content-Type Check: POST, PUT, and PATCH requests must use JSON
+		if (c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH") &&
 			!strings.Contains(c.GetHeader("Content-Type"), "application/json") {
 			c.AbortWithStatusJSON(415, gin.H{"error": "JSON required"})
 			return
