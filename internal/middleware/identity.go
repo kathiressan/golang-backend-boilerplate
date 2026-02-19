@@ -20,8 +20,12 @@ import (
 )
 
 var (
-	// signingKeyCache avoids DB hits for public keys (TTL 5m)
+	// signingKeyCache avoids DB hits for valid public keys (TTL 5m)
 	signingKeyCache = expirable.NewLRU[string, *jwt.JWTKey](100, nil, 5*time.Minute)
+
+	// invalidKeyCache caches known-bad key IDs (inactive / expired) so repeat
+	// requests with the same invalid kid do not hammer the database (TTL 1m).
+	invalidKeyCache = expirable.NewLRU[string, bool](200, nil, 1*time.Minute)
 
 	// sessionCache avoids redundant session existence checks (TTL 30s)
 	// Key: sessionID, Value: bool (exists)
@@ -44,6 +48,7 @@ type identityCtxKey struct{}
 // This is primarily intended for use in unit tests to ensure a clean state.
 func PurgeCaches() {
 	signingKeyCache.Purge()
+	invalidKeyCache.Purge()
 	sessionCache.Purge()
 	replayCache.Purge()
 	identityCheckCache.Purge()
@@ -136,18 +141,9 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		return
 	}
 
-	// 3. Verify signature
-	// Proves the sender knows the secret key
-	expectedSignature := cryptographyHelper.Base64HMAC(timestampStr+":"+nonce, requester.SecretKey)
-
-	if expectedSignature != signature {
-		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token signature")
-		c.Abort()
-		return
-	}
-
-	// 4. Time window check (Replay Protection)
-	// Parse the timestamp and ensure it's within the last 5 minutes.
+	// 3. Time window check — validate BEFORE the cryptographic signature check.
+	// Cheap, stateless rejection of obviously expired/future tokens avoids
+	// burning CPU on HMAC for requests that would be rejected anyway.
 	unixTime, err := strconv.ParseInt(timestampStr, 10, 64)
 	if err != nil {
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid timestamp format")
@@ -165,7 +161,17 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		return
 	}
 
-	// 5. Add to Replay Cache (AFTER validation)
+	// 4. Verify signature — only reached after cheap checks pass.
+	// Proves the sender knows the secret key.
+	expectedSignature := cryptographyHelper.Base64HMAC(timestampStr+":"+nonce, requester.SecretKey)
+
+	if expectedSignature != signature {
+		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token signature")
+		c.Abort()
+		return
+	}
+
+	// 5. Add to Replay Cache (AFTER all validation passes)
 	replayCache.Add(replayKey, true)
 
 	// Store validated context
@@ -200,9 +206,15 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 func handleUserIdentity(c *gin.Context, token string) {
 	// Define how to lookup keys from the database by KID (Version)
 	lookup := func(keyID string) (*jwt.JWTKey, error) {
-		// Check Cache First
+		// 1. Positive cache: valid key already resolved
 		if k, ok := signingKeyCache.Get(keyID); ok {
 			return k, nil
+		}
+
+		// 2. Negative cache: key was previously found to be invalid.
+		// Avoids a DB round-trip for every request using the same bad kid.
+		if _, bad := invalidKeyCache.Get(keyID); bad {
+			return nil, fmt.Errorf("signing key %s is inactive or expired (cached)", keyID)
 		}
 
 		k, err := repository.Repo.SigningKey.GetKeyByVersion(c.Request.Context(), keyID)
@@ -210,14 +222,18 @@ func handleUserIdentity(c *gin.Context, token string) {
 			return nil, fmt.Errorf("failed to lookup signing key from database: %w", err)
 		}
 		if k == nil {
+			// Key does not exist at all; cache negatively so we don't re-query.
+			invalidKeyCache.Add(keyID, true)
 			return nil, nil
 		}
 
 		// Validate key is active and not expired
 		if !k.IsActive {
+			invalidKeyCache.Add(keyID, true)
 			return nil, fmt.Errorf("signing key %s is inactive", keyID)
 		}
 		if k.IsExpired() {
+			invalidKeyCache.Add(keyID, true)
 			return nil, fmt.Errorf("signing key %s has expired", keyID)
 		}
 
@@ -228,7 +244,7 @@ func handleUserIdentity(c *gin.Context, token string) {
 			PublicKey: []byte(k.PublicKey),
 		}
 
-		// Store in Cache
+		// Store in positive cache
 		signingKeyCache.Add(keyID, jwtKey)
 
 		return jwtKey, nil
