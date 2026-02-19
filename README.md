@@ -56,20 +56,43 @@ A robust, enterprise-ready Go backend boilerplate featuring a multi-tenant hiera
 
 ## 📚 Documentation
 
-For more detailed information, please refer to the following guides:
-
-- **[Getting Started Guide](docs/getting_started_guide.md)**: **Start here!** A beginner-friendly guide to understanding the project, Go, and Postgres.
-- **[Swagger API Docs](docs/swagger_documentation.md)**: **New!** How to view and test APIs interactively.
+### Getting Started
+- **[Getting Started Guide](docs/getting_started_guide.md)**: **Start here!** Beginner-friendly guide to the project, Go, and Postgres.
 - **[Cheatsheet](docs/cheatsheet.md)**: Common commands for running, testing, and debugging.
-- **[Database Schema](docs/database_schema.md)**: Visual guide to the database tables and relationships.
-- **[Architecture Overview](docs/architecture.md)**: Deep dive into the system design and request lifecycle.
+- **[Root User Credentials](docs/root-user.md)**: Default admin account for testing.
+
+### Architecture & Design
+- **[Architecture Overview](docs/architecture.md)**: Deep dive into system design and request lifecycle.
+- **[Design Patterns Catalog](docs/design_patterns.md)**: Patterns used (Factory, Builder, Decorator, etc.).
+- **[Multi-Tenant Architecture](docs/multi_tenant_architecture.md)**: RLS and hierarchical organization logic.
+- **[Database Schema](docs/database_schema.md)**: Visual guide to tables and relationships.
+- **[Database Migrations](docs/database_migrations.md)**: Versioned migration system.
+
+### Data Layer
+- **[Repository Layer](docs/repository_layer.md)**: Guide to working with the data access layer.
+- **[Advanced Repository Patterns](docs/advanced_repository_patterns.md)**: Decorators, GORM plugins, RLS enforcement.
+
+### Security
+- **[Security & Identity](docs/security_and_identity.md)**: Authentication flows, session management, replay protection.
+- **[Security Hardening](docs/security_hardening.md)**: XSS, CORS, rate limiting, security headers.
+- **[Permissions System](docs/permissions.md)**: RBAC, ABAC, and combined authorization strategies.
+
+### Core Systems
+- **[Middleware System](docs/middleware.md)**: Complete middleware chain documentation.
+- **[Error Handling](docs/error_handling.md)**: AppError system, error codes, response formats.
+- **[Request Validation](docs/validation.md)**: Two-stage validation, tags, formatters.
+- **[Logging System](docs/logging.md)**: Structured logging, log levels, context.
+
+### Development
 - **[Development Guide](docs/development.md)**: How to add new features, entities, and services.
-- **[Design Patterns Catalog](docs/design_patterns.md)**: Exhaustive list of patterns used (Factory, Builder, Decorator, etc.).
-- **[Security & Identity](docs/security_and_identity.md)**: Authentication flows, session management, and replay protection.
-- **[Advanced Repository Patterns](docs/advanced_repository_patterns.md)**: Decorators, GORM plugins, and RLS enforcement.
-- **[Multi-Tenant Architecture](docs/multi_tenant_architecture.md)**: Explaining the RLS and OrgPath logic.
-- **[Repository Layer](docs/repository_layer.md)**: Detailed guide on working with the data access layer.
-- **[Configuration Reference](docs/configuration.md)**: Full list of supported environment variables.
+- **[Utilities Reference](docs/utilities.md)**: ULID, Slug, Password, Crypto utilities.
+- **[Testing Guide](docs/testing.md)**: Unit tests, integration tests, test database setup.
+- **[Configuration Reference](docs/configuration.md)**: Full list of environment variables.
+
+### API Documentation
+- **[Swagger API Docs](docs/swagger_documentation.md)**: How to view and test APIs interactively.
+
+### Troubleshooting
 - **[Troubleshooting Guide](docs/troubleshooting.md)**: Common pitfalls, RLS debugging, and more.
 
 ## ⚖ License
