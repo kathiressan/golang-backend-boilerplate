@@ -132,6 +132,15 @@ func endPointFunc(routeMatrix entities.TRouteMatrix) gin.HandlerFunc {
 			}
 			c.JSON(statusCode, response.Success("Success", value))
 			return
+		} else {
+			// Fallback: handler returned (nil, nil, nil).
+			// Use the route-configured code or default to 204 No Content.
+			statusCode := routeMatrix.SuccessCode
+			if statusCode == 0 {
+				statusCode = http.StatusNoContent
+			}
+			c.Status(statusCode)
+			return
 		}
 	}
 }
