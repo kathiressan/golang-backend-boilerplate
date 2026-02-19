@@ -36,6 +36,10 @@ var (
 	identityCheckCache = expirable.NewLRU[string, bool](1000, nil, 1*time.Minute)
 )
 
+// identityCtxKey is an unexported type for context keys in this package.
+// Using a typed key prevents collisions with other packages using the same string.
+type identityCtxKey struct{}
+
 // PurgeCaches clears all in-memory caches used by the middleware.
 // This is primarily intended for use in unit tests to ensure a clean state.
 func PurgeCaches() {
@@ -89,8 +93,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Add identity to request context for RLS (if it exists)
 		if identity, exists := c.Get("identity"); exists {
 			if id, ok := identity.(*entities.Identity); ok {
-				// Update the request context with identity for database operations
-				ctx := context.WithValue(c.Request.Context(), "identity", id)
+				// Update the request context with typed key to prevent collisions
+				ctx := context.WithValue(c.Request.Context(), identityCtxKey{}, id)
 				c.Request = c.Request.WithContext(ctx)
 			}
 		}
