@@ -11,6 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// validIdentifierRe matches safe SQL identifiers and sort expressions.
+// Compiled once at package init to avoid per-call overhead.
+var validIdentifierRe = regexp.MustCompile(`(?i)^[a-z0-9_\.]+(\s+(asc|desc))?$`)
+
 // BaseRepository provides generic CRUD operations for any entity type
 // T is the entity type (e.g., entities.User, entities.Session)
 type BaseRepository[T any] struct {
@@ -43,16 +47,12 @@ func (r *BaseRepository[T]) sanitizeIdentifier(identifier string) error {
 	// Split by comma for multi-column sorting
 	parts := strings.Split(identifier, ",")
 	
-	// Standard identifier regex: alphanumeric, underscores, dots, and optional ASC/DESC
-	// Case-insensitive to support standard Go field names (e.g., CreatedAt)
-	valid := regexp.MustCompile(`(?i)^[a-z0-9_\.]+(\s+(asc|desc))?$`)
-	
 	for _, part := range parts {
 		trimmedPart := strings.TrimSpace(part)
 		if trimmedPart == "" {
 			continue
 		}
-		if !valid.MatchString(trimmedPart) {
+		if !validIdentifierRe.MatchString(trimmedPart) {
 			return fmt.Errorf("invalid identifier: %s", identifier)
 		}
 	}
