@@ -8,6 +8,7 @@ import (
 	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 // rateLimitEntry tracks request count and window start time for an IP
@@ -17,11 +18,16 @@ type rateLimitEntry struct {
 	windowStart time.Time
 }
 
-// rateLimitStore provides atomic get-or-create semantics for rate limit entries.
-// sync.Map is used over a plain LRU here because LoadOrStore is atomic, which
-// eliminates the check-then-act race where two goroutines from the same IP both
-// see a cache miss and clobber each other's entries.
-var rateLimitStore sync.Map
+// rateLimitCache stores per-IP rate limit entries with a 2-minute TTL so that
+// entries for IPs that have gone quiet are automatically evicted, preventing
+// unbounded memory growth. Capacity is set to 10 000 unique IPs; the LRU
+// eviction policy drops the least-recently-seen IP when the cap is reached.
+var rateLimitCache = expirable.NewLRU[string, *rateLimitEntry](10_000, nil, 2*time.Minute)
+
+// rateLimitCacheMu guards cache-level get-or-create operations so that two
+// goroutines from the same IP cannot both observe a cache miss and insert
+// duplicate entries simultaneously.
+var rateLimitCacheMu sync.Mutex
 
 // RateLimitMiddleware implements a simple rate limiter based on IP address.
 // It limits the number of requests per minute per IP.
@@ -38,11 +44,15 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		now := time.Now()
 
-		// LoadOrStore atomically gets the existing entry or stores a new one.
-		// This eliminates the TOCTOU race that existed with the LRU check-then-add pattern.
-		newEntry := &rateLimitEntry{count: 0, windowStart: now}
-		actual, _ := rateLimitStore.LoadOrStore(clientIP, newEntry)
-		entry := actual.(*rateLimitEntry)
+		// Get or create the entry for this IP under the cache-level lock to
+		// eliminate the TOCTOU race between Get and Add.
+		rateLimitCacheMu.Lock()
+		entry, ok := rateLimitCache.Get(clientIP)
+		if !ok {
+			entry = &rateLimitEntry{count: 0, windowStart: now}
+			rateLimitCache.Add(clientIP, entry)
+		}
+		rateLimitCacheMu.Unlock()
 
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
