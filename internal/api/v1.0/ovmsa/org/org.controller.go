@@ -22,7 +22,7 @@ func SetOrgErrorChain(chain *helpers.ErrorHandlerChain) {
 }
 
 // CreateOrganizationHandler handles POST /org
-func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	req, err := helpers.ExtractPayload[CreateOrganizationRequest](payload)
 	if err != nil {
 		return nil, err, nil
@@ -47,7 +47,7 @@ func CreateOrganizationHandler(ctx *gin.Context, payload entities.TValidatedPayl
 }
 
 // CheckOrgNameHandler handles GET /org/check-name
-func CheckOrgNameHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func CheckOrgNameHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	req, err := helpers.ExtractPayload[CheckOrgNameRequest](payload)
 	if err != nil {
 		return nil, err, nil

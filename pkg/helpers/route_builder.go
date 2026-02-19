@@ -72,7 +72,7 @@ func (b *RouteBuilder) WithSchema(schema any) *RouteBuilder {
 }
 
 // WithHandler sets the handler function
-func (b *RouteBuilder) WithHandler(handler func(*gin.Context, entities.TValidatedPayload, *entities.TJwtData, entities.TParams) (any, error, error)) *RouteBuilder {
+func (b *RouteBuilder) WithHandler(handler func(*gin.Context, entities.TValidatedPayload, *entities.Identity, entities.TParams) (any, error, error)) *RouteBuilder {
 	b.route.Controller = entities.TController{
 		Handler: handler,
 	}

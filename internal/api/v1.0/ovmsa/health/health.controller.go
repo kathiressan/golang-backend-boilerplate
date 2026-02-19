@@ -14,7 +14,7 @@ func SetHealthErrorChain(chain *helpers.ErrorHandlerChain) {
 	healthErrorChain = chain
 }
 
-func HealthCheckHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func HealthCheckHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	return map[string]string{
 		"status":  "ok",
 		"message": "health check passed",

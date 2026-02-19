@@ -16,10 +16,6 @@ const (
 
 type TValidatedPayload = any
 
-type TJwtData struct {
-	UserID string
-	Role   string
-}
 
 type TParams map[string]any
 
@@ -32,7 +28,7 @@ type ABACConfig struct {
 }
 
 type TController struct {
-	Handler func(*gin.Context, TValidatedPayload, *TJwtData, TParams) (any, error, error)
+	Handler func(*gin.Context, TValidatedPayload, *Identity, TParams) (any, error, error)
 	Params  TParams
 }
 

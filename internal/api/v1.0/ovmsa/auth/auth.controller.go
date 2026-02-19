@@ -23,7 +23,7 @@ func SetAuthErrorChain(chain *helpers.ErrorHandlerChain) {
 }
 
 // LoginHandler handles POST /auth/login
-func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	req, err := helpers.ExtractPayload[LoginRequest](payload)
 	if err != nil {
 		return nil, err, nil
@@ -54,7 +54,7 @@ func LoginHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData 
 }
 
 // LogoutHandler handles POST /auth/logout
-func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
 	id, err := helpers.MustGetIdentity(ctx)
 	if err != nil {
@@ -77,7 +77,7 @@ func LogoutHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData
 }
 
 // LogoutAllHandler handles POST /auth/logout-all
-func LogoutAllHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func LogoutAllHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
 	id, err := helpers.MustGetIdentity(ctx)
 	if err != nil {
@@ -97,7 +97,7 @@ func LogoutAllHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtD
 }
 
 // RefreshTokenHandler handles POST /auth/refresh
-func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	req, err := helpers.ExtractPayload[RefreshTokenRequest](payload)
 	if err != nil {
 		return nil, err, nil
@@ -116,7 +116,7 @@ func RefreshTokenHandler(ctx *gin.Context, payload entities.TValidatedPayload, j
 }
 
 // GetCurrentUserHandler handles GET /auth/me
-func GetCurrentUserHandler(ctx *gin.Context, payload entities.TValidatedPayload, jwtData *entities.TJwtData, params entities.TParams) (any, error, error) {
+func GetCurrentUserHandler(ctx *gin.Context, payload entities.TValidatedPayload, identity *entities.Identity, params entities.TParams) (any, error, error) {
 	// Get identity from context (set by middleware)
 	id, err := helpers.MustGetIdentity(ctx)
 	if err != nil {

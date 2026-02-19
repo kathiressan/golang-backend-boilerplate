@@ -107,11 +107,14 @@ func endPointFunc(routeMatrix entities.TRouteMatrix) gin.HandlerFunc {
 			}
 		}
 
-		// Create a JWT data object
-		jwtData := &entities.TJwtData{}
+		// Extract identity from context (if set by AuthMiddleware)
+		var identity *entities.Identity
+		if val, exists := c.Get("identity"); exists {
+			identity, _ = val.(*entities.Identity)
+		}
 
 		// Call the actual handler function
-		value, err, validationError := routeMatrix.Controller.Handler(c, payload, jwtData, routeMatrix.Params)
+		value, err, validationError := routeMatrix.Controller.Handler(c, payload, identity, routeMatrix.Params)
 		if err != nil {
 			logger.Error("Handler error", "error", err.Error())
 			response.InternalServerErrorResponse(c, err, "Internal Server Error")
