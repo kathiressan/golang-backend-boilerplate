@@ -1,6 +1,7 @@
 package api
 
 import (
+	config "ovmsa-be/configs"
 	"ovmsa-be/internal/api/v1.0/ovmsa/auth"
 	"ovmsa-be/internal/api/v1.0/ovmsa/health"
 	"ovmsa-be/internal/api/v1.0/ovmsa/org"
@@ -17,7 +18,7 @@ type Registry struct {
 // RouteRegistry is the central store for all versioned platform routes
 var RouteRegistry = []Registry{
 	{
-		Platform: "ovmsa",
+		Platform: config.GetConfig().PlatformName,
 		Version:  "v1.0",
 		Groups: []entities.TGroup{
 			{
