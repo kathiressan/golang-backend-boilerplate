@@ -4,13 +4,13 @@ import (
 	"ovmsa-be/pkg/logger"
 	"time"
 
+	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // LoggerMiddleware logs the request and response using structured logging
 // This middleware:
-// 1. Generates or retrieves a unique request ID for tracking
+// 1. Retrieves the unique request ID set by the requestid middleware
 // 2. Records request start time for latency calculation
 // 3. Captures request details (method, path, client IP, etc.)
 // 4. Logs request completion with structured data
@@ -22,14 +22,10 @@ func LoggerMiddleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 		method := c.Request.Method
 
-		// Get or generate a unique request ID
-		// This ID is used to correlate logs for the same request
-		requestID := c.GetString("X-Request-ID")
-		if requestID == "" {
-			// Generate a new UUID if no request ID exists
-			requestID = uuid.New().String()
-			c.Set("X-Request-ID", requestID)
-		}
+		// Retrieve the request ID injected by the requestid middleware.
+		// requestid.Get() reads from the header/context key the middleware set,
+		// so we no longer need to generate a fallback UUID here.
+		requestID := requestid.Get(c)
 
 		// Process the request and let other middleware/handlers run
 		c.Next()
@@ -47,11 +43,11 @@ func LoggerMiddleware() gin.HandlerFunc {
 		// This makes it easier to search and analyze logs
 		logger.Info("Request completed",
 			"requestID", requestID, // Unique identifier for this request
-			"clientIP", clientIP, // Client's IP address
-			"method", method, // HTTP method (GET, POST, etc.)
-			"path", path, // Requested URL path
-			"status", statusCode, // HTTP status code
-			"latency", latency, // Time taken to process the request
+			"clientIP", clientIP,   // Client's IP address
+			"method", method,       // HTTP method (GET, POST, etc.)
+			"path", path,           // Requested URL path
+			"status", statusCode,   // HTTP status code
+			"latency", latency,     // Time taken to process the request
 			"userAgent", userAgent, // Client's browser/application
 			"errorCount", len(c.Errors), // Number of errors that occurred
 		)
