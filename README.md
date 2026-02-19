@@ -59,6 +59,7 @@ A robust, enterprise-ready Go backend boilerplate featuring a multi-tenant hiera
 For more detailed information, please refer to the following guides:
 
 - **[Getting Started Guide](docs/getting_started_guide.md)**: **Start here!** A beginner-friendly guide to understanding the project, Go, and Postgres.
+- **[Swagger API Docs](docs/swagger_documentation.md)**: **New!** How to view and test APIs interactively.
 - **[Cheatsheet](docs/cheatsheet.md)**: Common commands for running, testing, and debugging.
 - **[Database Schema](docs/database_schema.md)**: Visual guide to the database tables and relationships.
 - **[Architecture Overview](docs/architecture.md)**: Deep dive into the system design and request lifecycle.

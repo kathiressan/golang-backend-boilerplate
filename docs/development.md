@@ -52,6 +52,7 @@ Register it in `internal/services/init.go`.
 - Define request/response structs in `internal/api/v1.0/ovmsa/project/project.validate.go`.
 - Implement API handlers in `internal/api/v1.0/ovmsa/project/project.controller.go`.
 - Define routes using `RouteBuilder` in `internal/api/v1.0/ovmsa/project/project.route.go`.
+- **Documentation**: Add `.WithResponseSchema(&Response{})` to your route builder for Swagger.
 
 ### 5. Wiring it up
 1.  **Register Routes**: Add your `project.RouteMatrices` to `internal/api/routes.go`.

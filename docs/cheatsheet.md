@@ -10,6 +10,16 @@ This cheatsheet contains the most common commands you will need for daily develo
 go run cmd/app/main.go
 ```
 
+## 📚 API Documentation
+
+Once the app is running:
+
+| Feature | URL | Note |
+| :--- | :--- | :--- |
+| **Swagger UI** | `http://localhost:8080/swagger/` | Interactive API testing |
+| **JSON Spec** | `http://localhost:8080/swagger/doc.json` | Raw OpenAPI spec |
+
+
 ## 🛠 Database Tasks
 
 Since this project uses GORM's `AutoMigrate`, the schema updates automatically when you run the app. However, sometimes you need to reset things.

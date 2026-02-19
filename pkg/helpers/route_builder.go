@@ -71,6 +71,12 @@ func (b *RouteBuilder) WithSchema(schema any) *RouteBuilder {
 	return b
 }
 
+// WithResponseSchema sets the response schema for documentation
+func (b *RouteBuilder) WithResponseSchema(schema any) *RouteBuilder {
+	b.route.ResponseSchema = schema
+	return b
+}
+
 // WithHandler sets the handler function
 func (b *RouteBuilder) WithHandler(handler func(*gin.Context, entities.TValidatedPayload, *entities.Identity, entities.TParams) (any, error, error)) *RouteBuilder {
 	b.route.Controller = entities.TController{

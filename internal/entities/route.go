@@ -37,7 +37,8 @@ type TRouteMatrix struct {
 	ProtectedBy ProtectionStrategy
 	Permissions *RBACConfig
 	Attributes  *ABACConfig
-	Schema      any
+	Schema         any
+	ResponseSchema any
 	Controller  TController `validate:"required"`
 	Params      TParams
 	// SuccessCode is the HTTP status code returned on a successful response.

@@ -11,6 +11,7 @@ import (
 	"ovmsa-be/internal/middleware"
 	"ovmsa-be/internal/repository"
 	"ovmsa-be/internal/services"
+	"ovmsa-be/internal/swagger"
 	"ovmsa-be/pkg/database"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
@@ -87,6 +88,10 @@ func main() {
 
 	// Register all API routes
 	api.ApiHandler(router, svc)
+
+	// Register Swagger UI
+	// The /*any wildcard ensures that both /swagger/ and /swagger/doc.json are handled
+	router.GET("/swagger/*any", swagger.NewHandler(api.RouteRegistry))
 
 	// Create a server address string based on environment
 	var addr string

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"ovmsa-be/internal/entities"
+	serviceAuth "ovmsa-be/internal/services/auth"
 	"ovmsa-be/pkg/helpers"
 )
 
@@ -9,6 +10,7 @@ var RouteMatrices = []entities.TRouteMatrix{
 	helpers.POST("/login").
 		Unprotected().
 		WithSchema(&LoginRequest{}).
+		WithResponseSchema(&serviceAuth.LoginResult{}).
 		WithHandler(LoginHandler).
 		Build(),
 
@@ -25,11 +27,13 @@ var RouteMatrices = []entities.TRouteMatrix{
 	helpers.POST("/refresh").
 		Unprotected().
 		WithSchema(&RefreshTokenRequest{}).
+		WithResponseSchema(&serviceAuth.LoginResult{}).
 		WithHandler(RefreshTokenHandler).
 		Build(),
 
 	helpers.GET("/me").
 		ProtectedByJWT().
+		WithResponseSchema(&serviceAuth.UserInfo{}).
 		WithHandler(GetCurrentUserHandler).
 		Build(),
 }
