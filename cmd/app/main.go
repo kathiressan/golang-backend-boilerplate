@@ -51,6 +51,14 @@ func main() {
 	_ = db // Used via database.DB package variable
 	logger.Info("Database initialize successfully")
 
+	// Run migrations (Schema + RLS Policies) BEFORE initialising repositories
+	// and services so that, on a cold database, all required tables and policies
+	// exist before any code attempts to query them.
+	if err := database.Migrate(); err != nil {
+		logger.Fatal("Failed to run database migrations", "error", err)
+	}
+	logger.Info("Database migrations applied successfully")
+
 	// Initialize Repositories
 	repository.Initialize(db)
 	logger.Info("Repositories initialized successfully")
@@ -58,11 +66,6 @@ func main() {
 	// Initialize Services
 	svc := services.InitServices(db)
 	logger.Info("Services initialized successfully")
-
-	// Run migrations (Schema + RLS Policies)
-	if err := database.Migrate(); err != nil {
-		logger.Fatal("Failed to run database migrations", "error", err)
-	}
 
 	logger.Debug("Starting application",
 		"environment", cfg.Environment,
