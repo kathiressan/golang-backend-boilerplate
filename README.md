@@ -57,7 +57,11 @@ A robust, enterprise-ready Go backend boilerplate featuring a multi-tenant hiera
 ## 📚 Documentation
 
 ### Getting Started
-- **[Getting Started Guide](docs/getting_started_guide.md)**: **Start here!** Beginner-friendly guide to the project, Go, and Postgres.
+
+> **New to Go or PostgreSQL?** Start with **[Day 1 Tutorial](docs/day1_tutorial.md)** - a complete guide that teaches Go and PostgreSQL from scratch with hands-on exercises.
+
+- **[Day 1 Tutorial](docs/day1_tutorial.md)**: **Complete beginners start here!** Go & PostgreSQL fundamentals with hands-on exercises.
+- **[Getting Started Guide](docs/getting_started_guide.md)**: Project overview and quick setup guide.
 - **[Cheatsheet](docs/cheatsheet.md)**: Common commands for running, testing, and debugging.
 - **[Root User Credentials](docs/root-user.md)**: Default admin account for testing.
 
