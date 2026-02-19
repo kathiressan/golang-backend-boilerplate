@@ -16,21 +16,16 @@ import (
 // 4. Handles preflight requests
 // 5. Logs CORS configuration at startup
 func CORSMiddleware() gin.HandlerFunc {
+	cfg := config.GetConfig()
+	allowedOrigins := cfg.AllowedOrigins
+	allowedOriginsStr := strings.Join(allowedOrigins, ",")
+
+	logger.Info("CORS middleware initialized",
+		"environment", cfg.Environment,
+		"allowedOrigins", allowedOriginsStr,
+	)
+
 	return func(c *gin.Context) {
-		cfg := config.GetConfig()
-
-		// Get allowed origins from configuration
-		// These are the domains that are allowed to make requests to the API
-		allowedOrigins := strings.Join(cfg.AllowedOrigins, ",")
-
-		// Log CORS configuration at startup (only on the root path)
-		// This helps with debugging and monitoring
-		if c.Request.URL.Path == "/" && c.Request.Method == "GET" {
-			logger.Info("CORS configuration",
-				"environment", cfg.Environment,
-				"allowedOrigins", allowedOrigins,
-			)
-		}
 
 		// Get the origin of the request
 		// This is the domain making the request
@@ -39,7 +34,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		// Check if the request origin is allowed
 		if origin != "" {
 			allowed := false
-			for _, allowedOrigin := range cfg.AllowedOrigins {
+			for _, allowedOrigin := range allowedOrigins {
 				// Allow all origins if '*' is specified
 				// Otherwise, check for exact match
 				if allowedOrigin == "*" || allowedOrigin == origin {
