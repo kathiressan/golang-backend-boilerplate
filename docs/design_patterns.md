@@ -47,4 +47,4 @@ Found in `configs/config.go`.
 Found in `internal/repository/decorators.go`.
 - **Purpose**: Adds functionality like logging or auditing to repositories without modifying their core logic.
 - **Implementation**: `LoggingRepositoryDecorator` wraps a `BaseRepository` and implements the same interface.
-- **See also**: [Advanced Repository Patterns](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/advanced_repository_patterns.md).
+- **See also**: [Advanced Repository Patterns](advanced_repository_patterns.md).

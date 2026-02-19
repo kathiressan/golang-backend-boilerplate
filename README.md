@@ -58,15 +58,18 @@ A robust, enterprise-ready Go backend boilerplate featuring a multi-tenant hiera
 
 For more detailed information, please refer to the following guides:
 
-- **[Architecture Overview](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/architecture.md)**: Deep dive into the system design and request lifecycle.
-- **[Development Guide](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/development.md)**: How to add new features, entities, and services.
-- **[Design Patterns Catalog](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/design_patterns.md)**: Exhaustive list of patterns used (Factory, Builder, Decorator, etc.).
-- **[Security & Identity](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/security_and_identity.md)**: Authentication flows, session management, and replay protection.
-- **[Advanced Repository Patterns](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/advanced_repository_patterns.md)**: Decorators, GORM plugins, and RLS enforcement.
-- **[Multi-Tenant Architecture](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/multi_tenant_architecture.md)**: Explaining the RLS and OrgPath logic.
-- **[Repository Layer](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/repository_layer.md)**: Detailed guide on working with the data access layer.
-- **[Configuration Reference](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/configuration.md)**: Full list of supported environment variables.
-- **[Troubleshooting Guide](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/troubleshooting.md)**: Common pitfalls, RLS debugging, and more.
+- **[Getting Started Guide](docs/getting_started_guide.md)**: **Start here!** A beginner-friendly guide to understanding the project, Go, and Postgres.
+- **[Cheatsheet](docs/cheatsheet.md)**: Common commands for running, testing, and debugging.
+- **[Database Schema](docs/database_schema.md)**: Visual guide to the database tables and relationships.
+- **[Architecture Overview](docs/architecture.md)**: Deep dive into the system design and request lifecycle.
+- **[Development Guide](docs/development.md)**: How to add new features, entities, and services.
+- **[Design Patterns Catalog](docs/design_patterns.md)**: Exhaustive list of patterns used (Factory, Builder, Decorator, etc.).
+- **[Security & Identity](docs/security_and_identity.md)**: Authentication flows, session management, and replay protection.
+- **[Advanced Repository Patterns](docs/advanced_repository_patterns.md)**: Decorators, GORM plugins, and RLS enforcement.
+- **[Multi-Tenant Architecture](docs/multi_tenant_architecture.md)**: Explaining the RLS and OrgPath logic.
+- **[Repository Layer](docs/repository_layer.md)**: Detailed guide on working with the data access layer.
+- **[Configuration Reference](docs/configuration.md)**: Full list of supported environment variables.
+- **[Troubleshooting Guide](docs/troubleshooting.md)**: Common pitfalls, RLS debugging, and more.
 
 ## ⚖ License
 

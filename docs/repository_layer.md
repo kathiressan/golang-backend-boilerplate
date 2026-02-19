@@ -48,7 +48,7 @@ if sort != "" {
 The repository layer is the bridge between the application context and the database's RLS engine.
 
 ### Passing Identity Context
-The `getDB` helper method automatically attaches the request `context.Context` to the GORM instance. This ensures that the [RLS Plugin](file:///c:/Users/User/Desktop/golang-backend-boilerplate/pkg/database/rls_plugin.go) can extract the `Identity` from the context and set the appropriate session variables in PostgreSQL.
+The `getDB` helper method automatically attaches the request `context.Context` to the GORM instance. This ensures that the [RLS Plugin](../pkg/database/rls_plugin.go) can extract the `Identity` from the context and set the appropriate session variables in PostgreSQL.
 
 ---
 

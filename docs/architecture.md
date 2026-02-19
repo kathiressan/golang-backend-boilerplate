@@ -29,11 +29,11 @@ graph TD
 
 ### 1. Multi-Tenant Row-Level Security (RLS)
 Data isolation is enforced at the database level using PostgreSQL RLS. The `app.current_org_id` and `app.current_org_path` session variables are set by the `RLSPlugin` (in `pkg/database`) based on the `Identity` found in the request context.
-See [Multi-Tenant Architecture](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/multi_tenant_architecture.md) and [Security & Identity](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/security_and_identity.md) for details.
+See [Multi-Tenant Architecture](multi_tenant_architecture.md) and [Security & Identity](security_and_identity.md) for details.
 
 ### 2. Generic Base Repository
 The `BaseRepository[T]` provides a consistent CRUD interface for all entities, reducing boilerplate and ensuring that security checks (like identifier sanitization) are applied consistently.
-See [Repository Layer](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/repository_layer.md) and [Advanced Repository Patterns](file:///c:/Users/User/Desktop/golang-backend-boilerplate/docs/advanced_repository_patterns.md) for details.
+See [Repository Layer](repository_layer.md) and [Advanced Repository Patterns](advanced_repository_patterns.md) for details.
 
 ### 3. Controller Factory & Service Injection
 To manage dependencies, the application uses a centralized service initialization (`internal/services/init.go`) and a controller factory (`internal/api/controller_factory.go`). Services are injected into controllers, making them easy to mock during testing.
