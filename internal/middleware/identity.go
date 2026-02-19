@@ -262,8 +262,9 @@ func handleUserIdentity(c *gin.Context, token string) {
 	// Identity Consistency Check: Verify the identity data in the JWT is still valid.
 	// This prevents "Identity Staleness" where a demoted user still has root/admin access.
 	if claims.Subject != "" {
-		// Cache Key: userId|orgId|role|isRoot
-		cacheKey := claims.Subject + "|" + claims.OrgID + "|" + claims.Role + "|" + strconv.FormatBool(claims.IsRoot)
+		// Cache Key: sessionId|userId|orgId|role|isRoot
+		// Session ID is included so a new session after a role change is always re-validated.
+		cacheKey := claims.ID + "|" + claims.Subject + "|" + claims.OrgID + "|" + claims.Role + "|" + strconv.FormatBool(claims.IsRoot)
 
 		if _, ok := identityCheckCache.Get(cacheKey); !ok {
 			// 1. Verify Global Root Status
