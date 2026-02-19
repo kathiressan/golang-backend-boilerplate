@@ -150,9 +150,6 @@ func registerRoute(router *gin.RouterGroup, path string, method string, handler 
 func ApiHandler(router *gin.Engine, svc *services.Services) {
 	// Initialize all controllers with services
 	InitializeControllers(svc)
-	
-	// Apply authentication middleware globally
-	router.Use(middleware.AuthMiddleware())
 
 	// Register base routes
 	router.GET("/", func(c *gin.Context) {
