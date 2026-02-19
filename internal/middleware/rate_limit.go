@@ -8,7 +8,6 @@ import (
 	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 // rateLimitEntry tracks request count and window start time for an IP
@@ -18,14 +17,14 @@ type rateLimitEntry struct {
 	windowStart time.Time
 }
 
-var (
-	// rateLimitCache tracks requests per IP address
-	// Key: IP address, Value: rateLimitEntry
-	rateLimitCache = expirable.NewLRU[string, *rateLimitEntry](10000, nil, 1*time.Minute)
-)
+// rateLimitStore provides atomic get-or-create semantics for rate limit entries.
+// sync.Map is used over a plain LRU here because LoadOrStore is atomic, which
+// eliminates the check-then-act race where two goroutines from the same IP both
+// see a cache miss and clobber each other's entries.
+var rateLimitStore sync.Map
 
-// RateLimitMiddleware implements a simple rate limiter based on IP address
-// It limits the number of requests per minute per IP
+// RateLimitMiddleware implements a simple rate limiter based on IP address.
+// It limits the number of requests per minute per IP.
 func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cfg := config.GetConfig()
@@ -39,25 +38,18 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		now := time.Now()
 
-		// Get or create entry for this IP
-		entry, exists := rateLimitCache.Get(clientIP)
-		if !exists {
-			// First request from this IP in the current window
-			entry = &rateLimitEntry{
-				count:       1,
-				windowStart: now,
-			}
-			rateLimitCache.Add(clientIP, entry)
-			c.Next()
-			return
-		}
+		// LoadOrStore atomically gets the existing entry or stores a new one.
+		// This eliminates the TOCTOU race that existed with the LRU check-then-add pattern.
+		newEntry := &rateLimitEntry{count: 0, windowStart: now}
+		actual, _ := rateLimitStore.LoadOrStore(clientIP, newEntry)
+		entry := actual.(*rateLimitEntry)
 
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 
 		// Check if we're still in the same 1-minute window
 		if now.Sub(entry.windowStart) > 1*time.Minute {
-			// New window, reset counter
+			// New window: reset counter and slide the window
 			entry.count = 1
 			entry.windowStart = now
 			c.Next()
