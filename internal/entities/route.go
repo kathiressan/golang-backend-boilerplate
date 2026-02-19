@@ -29,7 +29,6 @@ type ABACConfig struct {
 
 type TController struct {
 	Handler func(*gin.Context, TValidatedPayload, *Identity, TParams) (any, error, error)
-	Params  TParams
 }
 
 type TRouteMatrix struct {
