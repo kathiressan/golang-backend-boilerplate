@@ -121,7 +121,13 @@ func endPointFunc(routeMatrix entities.TRouteMatrix) gin.HandlerFunc {
 			response.ValidationErrorWithDetailsResponse(c, validationError, "Validation error", validationErrors)
 			return
 		} else if value != nil {
-			c.JSON(http.StatusOK, response.Success("Success", value))
+			// Resolve the success status code: use the route-configured code if
+			// set, otherwise fall back to 200 OK.
+			statusCode := routeMatrix.SuccessCode
+			if statusCode == 0 {
+				statusCode = http.StatusOK
+			}
+			c.JSON(statusCode, response.Success("Success", value))
 			return
 		}
 	}

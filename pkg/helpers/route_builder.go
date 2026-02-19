@@ -85,6 +85,13 @@ func (b *RouteBuilder) WithParams(params entities.TParams) *RouteBuilder {
 	return b
 }
 
+// WithSuccessCode sets the HTTP status code returned on success.
+// Defaults to 200 when not called. Use 201 for POST endpoints that create resources.
+func (b *RouteBuilder) WithSuccessCode(code int) *RouteBuilder {
+	b.route.SuccessCode = code
+	return b
+}
+
 // Build returns the configured route matrix
 func (b *RouteBuilder) Build() entities.TRouteMatrix {
 	return b.route

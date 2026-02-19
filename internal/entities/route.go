@@ -45,6 +45,9 @@ type TRouteMatrix struct {
 	Schema      any
 	Controller  TController `validate:"required"`
 	Params      TParams
+	// SuccessCode is the HTTP status code returned on a successful response.
+	// Defaults to 200 when zero. Set to 201 for POST endpoints that create resources.
+	SuccessCode int
 }
 
 type TGroup struct {
