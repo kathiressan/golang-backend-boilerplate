@@ -25,6 +25,10 @@ func NewOrganizationService(db *gorm.DB) *OrganizationService {
 var (
 	// ErrOrganizationAlreadyExists is returned when an organization with the same path already exists
 	ErrOrganizationAlreadyExists = fmt.Errorf("organization with this name already exists at this level")
+	// ErrOrgPathTooLong is returned when the calculated org path exceeds maximum length
+	ErrOrgPathTooLong = fmt.Errorf("organization path exceeds maximum length")
+	// MaxOrgPathLength is the maximum allowed length for org path
+	MaxOrgPathLength = 500
 )
 
 // CreateOrganization creates a new organization
@@ -99,6 +103,10 @@ func (s *OrganizationService) calculateOrgPath(ctx context.Context, name string,
 		// OrgID will be set to ID in BeforeCreate hook of Organization entity
 		orgID = ""
 		orgPath = "/" + utils.Slugify(name) + "/"
+	}
+
+	if len(orgPath) > MaxOrgPathLength {
+		return "", "", ErrOrgPathTooLong
 	}
 
 	return orgID, orgPath, nil
