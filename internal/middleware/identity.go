@@ -183,9 +183,6 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 		return
 	}
 
-	// 5. Add to Replay Cache (AFTER all validation passes)
-	replayCache.Add(replayKey, true)
-
 	// Store validated context
 	c.Set("tokenContext", TokenContext{
 		Token:       strings.Join(tokenParts, ":"),
