@@ -14,6 +14,7 @@ import (
 	"ovmsa-be/pkg/response"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,13 +29,17 @@ var (
 	// requests with the same invalid kid do not hammer the database (TTL 1m).
 	invalidKeyCache = expirable.NewLRU[string, bool](200, nil, 1*time.Minute)
 
-	// sessionCache avoids redundant session existence checks (TTL 30s)
+	// sessionCache avoids redundant session existence checks (TTL 5s)
 	// Key: sessionID, Value: bool (exists)
-	sessionCache = expirable.NewLRU[string, bool](1000, nil, 30*time.Second)
+	// Note: Kept short to ensure session revocation is detected quickly
+	sessionCache = expirable.NewLRU[string, bool](1000, nil, 5*time.Second)
 
 	// replayCache tracks used signatures for external service tokens to prevent replays (TTL 5m)
 	// Key: base64(signature), Value: bool
 	replayCache = expirable.NewLRU[string, bool](2000, nil, 5*time.Minute)
+
+	// replayMu mutex protects replay cache check-and-add to prevent race conditions
+	replayMu sync.Mutex
 
 	// identityCheckCache avoids redundant user/membership existence and permission checks (TTL 1m)
 	// Key: userID:orgID:role:isRoot, Value: bool (valid)
@@ -95,7 +100,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Otherwise, handle as standard user JWT
 		handleUserIdentity(c, token)
-		
+
 		// Add identity to request context for RLS (if it exists)
 		if identity, exists := c.Get("identity"); exists {
 			if id, ok := identity.(*entities.Identity); ok {
@@ -104,7 +109,7 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.Request = c.Request.WithContext(ctx)
 			}
 		}
-		
+
 		c.Next()
 	}
 }
@@ -124,15 +129,21 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	nonce := tokenParts[2]
 	signature := tokenParts[3]
 
-	// 1. Replay Protection: Check if this canonical message has been seen recently.
+	// 1. Replay Protection: Atomically check and add to prevent race conditions.
 	// Key on the full message (requesterID:timestamp:nonce) rather than just the
 	// signature, since a bare HMAC output is not a reliable unique fingerprint.
 	replayKey := requesterID + ":" + timestampStr + ":" + nonce
+
+	// Use mutex to make check-and-add atomic
+	replayMu.Lock()
 	if _, seen := replayCache.Get(replayKey); seen {
+		replayMu.Unlock()
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Replay detected")
 		c.Abort()
 		return
 	}
+	replayCache.Add(replayKey, true)
+	replayMu.Unlock()
 
 	// 2. Lookup Requester
 	requester, exists := config.ValidRequesters[requesterID]
@@ -259,10 +270,10 @@ func handleUserIdentity(c *gin.Context, token string) {
 			c.Abort()
 			return
 		}
-		
+
 		// Log detailed error for internal troubleshooting
 		log.Error("JWT validation failed", "error", err)
-		
+
 		// Generic unauthorized for other validation failures
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token")
 		c.Abort()
@@ -305,6 +316,13 @@ func handleUserIdentity(c *gin.Context, token string) {
 				membership, err := repository.Repo.Membership.FindByUserAndOrg(c.Request.Context(), claims.Subject, claims.OrgID)
 				if err != nil || membership == nil {
 					response.UnauthorizedResponse(c, nil, "Unauthorized: No access to organization")
+					c.Abort()
+					return
+				}
+				// Validate that the membership's org matches the claims org ID
+				// This prevents cross-org privilege escalation
+				if membership.OrgID != claims.OrgID {
+					response.UnauthorizedResponse(c, nil, "Unauthorized: Organization mismatch")
 					c.Abort()
 					return
 				}
