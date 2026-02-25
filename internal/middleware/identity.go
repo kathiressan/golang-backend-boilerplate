@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	config "ovmsa-be/configs"
@@ -40,9 +41,7 @@ var (
 	identityCheckCache = expirable.NewLRU[string, bool](1000, nil, 1*time.Minute)
 )
 
-// identityCtxKey is an unexported type for context keys in this package.
-// Using a typed key prevents collisions with other packages using the same string.
-type identityCtxKey struct{}
+// Context keys are defined in the entities package.
 
 // PurgeCaches clears all in-memory caches used by the middleware.
 // This is primarily intended for use in unit tests to ensure a clean state.
@@ -87,7 +86,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		if len(tokenParts) == 4 {
 			if _, isRequester := config.ValidRequesters[tokenParts[0]]; isRequester {
 				handleExternalServiceToken(c, tokenParts)
-				c.Next()
+				if !c.IsAborted() {
+					c.Next()
+				}
 				return
 			}
 		}
@@ -99,7 +100,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		if identity, exists := c.Get("identity"); exists {
 			if id, ok := identity.(*entities.Identity); ok {
 				// Update the request context with typed key to prevent collisions
-				ctx := context.WithValue(c.Request.Context(), identityCtxKey{}, id)
+				ctx := context.WithValue(c.Request.Context(), entities.IdentityCtxKey, id)
 				c.Request = c.Request.WithContext(ctx)
 			}
 		}
@@ -165,7 +166,7 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 	// Proves the sender knows the secret key.
 	expectedSignature := cryptographyHelper.Base64HMAC(timestampStr+":"+nonce, requester.SecretKey)
 
-	if expectedSignature != signature {
+	if !hmac.Equal([]byte(expectedSignature), []byte(signature)) {
 		response.UnauthorizedResponse(c, nil, "Unauthorized: Invalid token signature")
 		c.Abort()
 		return

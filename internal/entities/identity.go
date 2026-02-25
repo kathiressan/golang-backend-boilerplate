@@ -2,6 +2,11 @@ package entities
 
 import "slices"
 
+// ContextKey is a custom type for context keys to prevent collisions
+type ContextKey string
+
+const IdentityCtxKey ContextKey = "identity"
+
 // Identity represents the authenticated requester's context.
 // This is the "Identity Card" that travels with every request.
 type Identity struct {

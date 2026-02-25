@@ -68,7 +68,7 @@ func ScopeByPath(path string) func(db *gorm.DB) *gorm.DB {
 
 // GetIdentity extracts the Identity from the context.
 func GetIdentity(ctx context.Context) *Identity {
-	if id, ok := ctx.Value("identity").(*Identity); ok {
+	if id, ok := ctx.Value(IdentityCtxKey).(*Identity); ok {
 		return id
 	}
 	return nil

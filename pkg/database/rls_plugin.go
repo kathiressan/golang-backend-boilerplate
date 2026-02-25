@@ -30,7 +30,7 @@ func (p *RLSPlugin) before(db *gorm.DB) {
 	}
 
 	// Extract identity from context
-	id, ok := db.Statement.Context.Value("identity").(*entities.Identity)
+	id, ok := db.Statement.Context.Value(entities.IdentityCtxKey).(*entities.Identity)
 	if !ok || id == nil {
 		return
 	}

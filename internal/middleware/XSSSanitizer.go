@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"ovmsa-be/pkg/response"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -9,15 +10,25 @@ import (
 
 var strictPolicy = bluemonday.StrictPolicy()
 
-// XSSSanitizer is a middleware that sanitizes path and query parameters to prevent XSS attacks.
+	// XSSSanitizer is a middleware that sanitizes path and query parameters to prevent XSS attacks.
 // It uses the bluemonday library to strip potentially dangerous HTML/Script tags.
 func XSSSanitizer() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Content-Type Check: POST, PUT, and PATCH requests must use JSON
-		if (c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH") &&
-			!strings.Contains(c.GetHeader("Content-Type"), "application/json") {
-			c.AbortWithStatusJSON(415, gin.H{"error": "JSON required"})
-			return
+		// 1. Content-Type Check: POST, PUT, and PATCH requests block unsupported types
+		method := c.Request.Method
+		if method == "POST" || method == "PUT" || method == "PATCH" {
+			contentType := c.GetHeader("Content-Type")
+			// If content type is specified, we must verify it is one of the supported types
+			if contentType != "" &&
+				!strings.Contains(contentType, "application/json") &&
+				!strings.Contains(contentType, "multipart/form-data") &&
+				!strings.Contains(contentType, "application/x-www-form-urlencoded") {
+				
+				appErr := appErrors.New(nil, 415, "UNSUPPORTED_MEDIA_TYPE", "Unsupported media type", "UnsupportedMediaType")
+				response.Error(c, appErr)
+				c.Abort()
+				return
+			}
 		}
 
 		// 2. Sanitize Path Params (removes <script>, etc.)
