@@ -1,8 +1,10 @@
 package middleware
 
 import (
-	"ovmsa-be/pkg/response"
 	"strings"
+
+	appErrors "ovmsa-be/pkg/errors"
+	"ovmsa-be/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"github.com/microcosm-cc/bluemonday"
