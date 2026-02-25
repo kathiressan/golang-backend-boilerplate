@@ -40,12 +40,35 @@ func (b *BaseEntity) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (b *BaseEntity) BeforeUpdate(tx *gorm.DB) error {
-	if b.OrgPath != "" && b.OrgPath[len(b.OrgPath)-1] != '/' {
-		b.OrgPath += "/"
+	// Only add trailing slash if the path is being modified and doesn't already have one
+	// We check the database to see if org_path actually changed
+	if b.OrgPath == "" {
+		return nil
 	}
+
+	// Check if path already has trailing slash - if so, don't modify
+	if len(b.OrgPath) > 0 && b.OrgPath[len(b.OrgPath)-1] == '/' {
+		return nil
+	}
+
+	// Check if the path was already normalized in BeforeCreate
+	// by looking at the current DB value via the transaction
+	var existingEntity BaseEntity
+	if err := tx.Where("id = ?", b.ID).First(&existingEntity).Error; err == nil {
+		// If the path hasn't changed, don't add slash again
+		if existingEntity.OrgPath == b.OrgPath {
+			return nil
+		}
+		// If existing path already had slash, preserve it
+		if len(existingEntity.OrgPath) > 0 && existingEntity.OrgPath[len(existingEntity.OrgPath)-1] == '/' {
+			return nil
+		}
+	}
+
+	// Path was modified and doesn't have trailing slash - add it
+	b.OrgPath += "/"
 	return nil
 }
-
 
 // ScopeByOrg is a GORM scope that can be used manually if RLS is not active.
 // We use this as a second layer of defense.
