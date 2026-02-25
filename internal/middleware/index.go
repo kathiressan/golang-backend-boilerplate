@@ -33,8 +33,4 @@ func SetupMiddleware(router *gin.Engine) {
 
 	// Add Identity context extractor for Enterprise B2B multi-tenancy
 	router.Use(AuthMiddleware())
-
-	// Add path handler middleware for route parsing
-	// This normalizes and parses request paths
-	// router.Use(PathHandler())
 }
