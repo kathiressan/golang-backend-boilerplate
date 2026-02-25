@@ -2,8 +2,10 @@ package database
 
 import (
 	"fmt"
+	"os"
 	config "ovmsa-be/configs"
 	"ovmsa-be/internal/entities"
+	"ovmsa-be/pkg/password"
 
 	"gorm.io/gorm"
 )
@@ -57,13 +59,21 @@ var Migrations = []MigrationStep{
 
 			// Seed the Root User as a pure SYSTEM ROOT user.
 			// This user belongs to no specific org but has global bypass powers.
-			// Default password: "RootPass123!" (bcrypt hashed)
-			// IMPORTANT: Change this password after first login in production!
+			// Password must be set via ROOT_PASSWORD environment variable
+			rootPassword := os.Getenv("ROOT_PASSWORD")
+			if rootPassword == "" {
+				return fmt.Errorf("ROOT_PASSWORD environment variable must be set")
+			}
+
+			hashedPassword, err := password.HashPassword(rootPassword)
+			if err != nil {
+				return fmt.Errorf("failed to hash root password: %w", err)
+			}
+
 			adminUser := &entities.User{
-				Name:  "System Root",
-				Email: "root@system.local",
-				// Password: "RootPass123!" (bcrypt hash with cost 10)
-				PasswordHash: "$2a$10$s/P6VlKWLLQ2P5.Cr0eGIOAl0DOze79YvxFgPlXbM0IsBy.O4kasi",
+				Name:         "System Root",
+				Email:        "root@system.local",
+				PasswordHash: hashedPassword,
 				IsRoot:       true, // Global System Admin
 			}
 			return tx.Create(adminUser).Error
