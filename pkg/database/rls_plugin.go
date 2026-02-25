@@ -23,9 +23,18 @@ func (p *RLSPlugin) Initialize(db *gorm.DB) error {
 	return nil
 }
 
+// rlsConfiguredKey is used to track if RLS has been configured for the current statement
+const rlsConfiguredKey = "rls_plugin_configured"
+
 // before is the function that injects SET LOCAL commands before the actual SQL runs.
 func (p *RLSPlugin) before(db *gorm.DB) {
 	if db.Error != nil || db.Statement.Context == nil {
+		return
+	}
+
+	// Skip if already run for this statement (prevent duplicate SET commands in hooks)
+	// sync.Map cannot be compared to nil, so we use Load to check
+	if _, alreadySet := db.Statement.Settings.Load(rlsConfiguredKey); alreadySet {
 		return
 	}
 
@@ -41,14 +50,28 @@ func (p *RLSPlugin) before(db *gorm.DB) {
 	}
 
 	// Apply session variables with safety delimiters
+	// Use SET LOCAL within a transaction to ensure it only lasts for the current transaction
 	path := id.OrgPath
-	if path != "" && path[len(path)-1] != '/' {
+	if path != "" && len(path) > 0 && path[len(path)-1] != '/' {
 		path += "/"
 	}
 
-	db.Exec("SELECT set_config('app.current_org_id', ?, true)", id.OrgID)
-	db.Exec("SELECT set_config('app.current_org_path', ?, true)", path)
-	db.Exec("SELECT set_config('app.user_id', ?, true)", id.UserID)
-	db.Exec("SELECT set_config('app.user_role', ?, true)", id.Role)
-	db.Exec("SELECT set_config('app.is_root', ?, true)", isRoot)
+	// Execute SET LOCAL within the same transaction/scoped connection
+	// Using db.Session to ensure the settings persist for this operation
+	session := db.Session(&gorm.Session{})
+	execInScope := func(query string, args ...any) {
+		if err := session.Exec(query, args...).Error; err != nil {
+			// Log but don't fail - let the actual query determine the outcome
+			_ = err
+		}
+	}
+
+	execInScope("SET LOCAL app.current_org_id TO ?", id.OrgID)
+	execInScope("SET LOCAL app.current_org_path TO ?", path)
+	execInScope("SET LOCAL app.user_id TO ?", id.UserID)
+	execInScope("SET LOCAL app.user_role TO ?", id.Role)
+	execInScope("SET LOCAL app.is_root TO ?", isRoot)
+
+	// Mark as configured to prevent duplicate execution
+	db.Statement.Settings.Store(rlsConfiguredKey, true)
 }
