@@ -12,8 +12,8 @@ import (
 const (
 	// MinPasswordLength is the minimum required password length
 	MinPasswordLength = 8
-	// BcryptCost is the cost factor for bcrypt hashing (10 is the default, good balance of security and performance)
-	BcryptCost = bcrypt.DefaultCost
+	// BcryptCost is the cost factor for bcrypt hashing (12 is recommended for production)
+	BcryptCost = 12
 )
 
 var (
