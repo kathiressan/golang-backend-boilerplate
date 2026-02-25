@@ -57,13 +57,15 @@ type UserInfo struct {
 
 // AuthService handles authentication business logic
 type AuthService struct {
-	db *gorm.DB
+	db         *gorm.DB
+	jwtManager jwt.JWTManager
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(db *gorm.DB) *AuthService {
+func NewAuthService(db *gorm.DB, jwtManager jwt.JWTManager) *AuthService {
 	return &AuthService{
-		db: db,
+		db:         db,
+		jwtManager: jwtManager,
 	}
 }
 
@@ -156,7 +158,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ipAddress, us
 		Audience:  input.Audience,
 	}
 
-	accessToken, err := jwt.GenerateAccessToken(identity)
+	accessToken, err := s.jwtManager.GenerateAccessToken(identity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -259,7 +261,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken, audience s
 		Audience:  audience,
 	}
 
-	accessToken, err := jwt.GenerateAccessToken(identity)
+	accessToken, err := s.jwtManager.GenerateAccessToken(identity)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}

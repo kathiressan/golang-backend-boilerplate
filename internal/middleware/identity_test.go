@@ -26,9 +26,14 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 	os.Setenv("APP_NAME", "TestApp")
 	os.Setenv("PROJECT_ROOT", ".")
 	os.Setenv("PLATFORM_NAME", "TestPlatform")
-	os.Setenv("JWT_SECRET", "test-secret")
-	os.Setenv("JWT_SIGNING_METHOD", "HS256")
-	config.ResetConfigForTest()
+
+	cfg := &config.Config{
+		AppName: "TestApp",
+		JWTSecret: "test-secret",
+		JWTSigningMethod: "HS256",
+		AccessTokenExpiryMinutes: 60,
+	}
+
 	log.Initialize(config.EnvDevelopment)
 
 	// Initialize a real SQLite in-memory DB for repository testing
@@ -59,11 +64,12 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 		SessionID: sessionID,
 		Audience:  "TestApp",
 	}
-	token, _ := jwt.GenerateAccessToken(identity)
+	manager := jwt.NewJWTManager(cfg)
+	token, _ := manager.GenerateAccessToken(identity)
 
 	// 3. Setup router with middleware
 	router := gin.New()
-	router.Use(AuthMiddleware())
+	router.Use(AuthMiddleware(manager))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -90,9 +96,12 @@ func TestAuthMiddleware_Revocation(t *testing.T) {
 
 func TestAuthMiddleware_IdentityConsistency(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	os.Setenv("APP_NAME", "TestApp")
-	os.Setenv("JWT_SECRET", "test-secret")
-	config.ResetConfigForTest()
+	cfg := &config.Config{
+		AppName: "TestApp",
+		JWTSecret: "test-secret",
+		JWTSigningMethod: "HS256",
+		AccessTokenExpiryMinutes: 60,
+	}
 
 	db, _ := database.InitializeTestDB()
 	repository.Initialize(db)
@@ -103,14 +112,15 @@ func TestAuthMiddleware_IdentityConsistency(t *testing.T) {
 	db.Create(&user)
 
 	// 2. Generate token for root
-	token, _ := jwt.GenerateAccessToken(jwt.UserIdentity{
+	manager := jwt.NewJWTManager(cfg)
+	token, _ := manager.GenerateAccessToken(jwt.UserIdentity{
 		UserID: user.ID,
 		IsRoot: true,
 		Audience: "TestApp",
 	})
 
 	router := gin.New()
-	router.Use(AuthMiddleware())
+	router.Use(AuthMiddleware(manager))
 	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	// 3. Verify it works initially
@@ -135,9 +145,12 @@ func TestAuthMiddleware_IdentityConsistency(t *testing.T) {
 
 func TestAuthMiddleware_RoleConsistency(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	os.Setenv("APP_NAME", "TestApp")
-	os.Setenv("JWT_SECRET", "test-secret")
-	config.ResetConfigForTest()
+	cfg := &config.Config{
+		AppName: "TestApp",
+		JWTSecret: "test-secret",
+		JWTSigningMethod: "HS256",
+		AccessTokenExpiryMinutes: 60,
+	}
 
 	db, _ := database.InitializeTestDB()
 	repository.Initialize(db)
@@ -154,7 +167,8 @@ func TestAuthMiddleware_RoleConsistency(t *testing.T) {
 	membership.OrgID = orgID
 	db.Create(&membership)
 
-	token, _ := jwt.GenerateAccessToken(jwt.UserIdentity{
+	manager := jwt.NewJWTManager(cfg)
+	token, _ := manager.GenerateAccessToken(jwt.UserIdentity{
 		UserID: user.ID,
 		OrgID:  orgID,
 		Role:   "admin",
@@ -162,7 +176,7 @@ func TestAuthMiddleware_RoleConsistency(t *testing.T) {
 	})
 
 	router := gin.New()
-	router.Use(AuthMiddleware())
+	router.Use(AuthMiddleware(manager))
 	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	// Verify works initially

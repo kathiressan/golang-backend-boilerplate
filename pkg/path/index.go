@@ -3,16 +3,9 @@
 package pathHelper
 
 import (
-	config "ovmsa-be/configs"
 	"slices"
 	"strings"
 )
-
-var cfg = config.GetConfig()
-
-// Platforms represents valid platforms in the API
-// These are the supported platforms that can make requests to the API
-var Platforms = []string{cfg.PlatformName, "web", "mobile"}
 
 // ValidActions represents valid HTTP actions/methods
 // These are the standard HTTP methods supported by the API
@@ -28,18 +21,6 @@ var ActionMap = map[string]string{
 }
 
 // ParsedPath represents the parsed structure of an API path
-// This struct contains all the components of a parsed API path
-// Fields:
-// - FullPath: The complete original path
-// - APIVersion: The version of the API being used
-// - Platform: The platform making the request (cfg.PlatformName, web, mobile)
-// - MainRoute: The main route segment of the path
-// - SubRoutes: Detailed information about sub-routes
-// - FullSubRoute: The complete sub-route path
-// - SubRouteWithoutAction: The sub-route without the action
-// - SubRoute: The current sub-route being accessed
-// - Action: The HTTP action being performed
-// - Error: Any error that occurred during parsing
 type ParsedPath struct {
 	FullPath              string
 	APIVersion            string
@@ -54,14 +35,6 @@ type ParsedPath struct {
 }
 
 // SubRoutes represents the structure of sub-routes in a path
-// This struct provides easy access to different parts of the sub-route
-// Fields:
-// - Count: Total number of sub-route segments
-// - All: All sub-route segments as a slice
-// - First: The first sub-route segment
-// - Second: The second sub-route segment
-// - Third: The third sub-route segment
-// - Last: The last sub-route segment
 type SubRoutes struct {
 	Count  int
 	All    []string
@@ -71,18 +44,27 @@ type SubRoutes struct {
 	Last   string
 }
 
+// PathParser defines the interface for parsing request paths
+type PathParser interface {
+	ParseRequestPath(path string) ParsedPath
+}
+
+// Parser is the concrete implementation of PathParser
+type Parser struct {
+	platformName string
+	platforms    []string
+}
+
+// NewParser creates a new path parser instance with the given configuration
+func NewParser(platformName string) *Parser {
+	return &Parser{
+		platformName: platformName,
+		platforms:    []string{platformName, "web", "mobile"},
+	}
+}
+
 // ParseRequestPath parses a request path into its components
-// This function:
-// 1. Normalizes the path by removing trailing slashes
-// 2. Identifies the platform (cfg.PlatformName, web, mobile)
-// 3. Extracts the main route and sub-routes
-// 4. Determines the API version and action
-// 5. Returns a ParsedPath struct with all components
-// Parameters:
-// - path: The request path to parse
-// Returns:
-// - ParsedPath: A struct containing all parsed path components
-func ParseRequestPath(path string) ParsedPath {
+func (p *Parser) ParseRequestPath(path string) ParsedPath {
 	// Remove trailing slash if present
 	path = strings.TrimSuffix(path, "/")
 
@@ -101,17 +83,17 @@ func ParseRequestPath(path string) ParsedPath {
 	}
 
 	// Get platform
-	platform := cfg.PlatformName
+	platform := p.platformName
 	if start+1 < nParts {
 		platform = pathParts[start+1]
-		if !slices.Contains(Platforms, platform) {
-			platform = cfg.PlatformName
+		if !slices.Contains(p.platforms, platform) {
+			platform = p.platformName
 		}
 	}
 
 	// Get main route
 	mainRoute := ""
-	if platform == cfg.PlatformName {
+	if platform == p.platformName {
 		if start+1 < nParts {
 			mainRoute = pathParts[start+1]
 		}

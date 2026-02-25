@@ -65,10 +65,17 @@ func loadConfig() (*Config, error) {
 	// Try to load .env file
 	_ = godotenv.Load()
 
+	// Auto-detect test execution (works on Linux/Mac '.test' and Windows '.test.exe')
+	isTestExecution := strings.Contains(os.Args[0], ".test") || strings.Contains(os.Args[0], "/_test/") || strings.Contains(os.Args[0], "\\_test\\")
+
 	// GIN_MODE
 	ginMode := os.Getenv("GIN_MODE")
 	if ginMode == "" {
-		ginMode = "debug" // Default to debug mode
+		if isTestExecution {
+			ginMode = "test"
+		} else {
+			ginMode = "debug" // Default to debug mode
+		}
 	}
 	if ginMode != "debug" && ginMode != "release" && ginMode != "test" {
 		return nil, fmt.Errorf("invalid GIN_MODE value: %s. Must be one of: debug, release, test", ginMode)
@@ -97,7 +104,7 @@ func loadConfig() (*Config, error) {
 	}
 
 	// TEST_MODE
-	testMode := os.Getenv("TEST_MODE") == "true"
+	testMode := os.Getenv("TEST_MODE") == "true" || isTestExecution
 
 	// APP_NAME
 	appName := os.Getenv("APP_NAME")
@@ -167,7 +174,11 @@ func loadConfig() (*Config, error) {
 			return nil, fmt.Errorf("JWT_SECRET must be set in production for HS256")
 		}
 		if jwtSecret == "" {
-			return nil, fmt.Errorf("JWT_SECRET must be set")
+			if ginMode == "test" {
+				jwtSecret = "test-secret"
+			} else {
+				return nil, fmt.Errorf("JWT_SECRET must be set")
+			}
 		}
 	}
 

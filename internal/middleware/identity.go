@@ -67,7 +67,7 @@ type TokenContext struct {
 
 // AuthMiddleware is a unified authentication handler that dispatches to either
 // external service validation or user identity extraction based on token format.
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(jwtManager jwt.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -99,7 +99,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Otherwise, handle as standard user JWT
-		handleUserIdentity(c, token)
+		handleUserIdentity(c, token, jwtManager)
 
 		// Add identity to request context for RLS (if it exists)
 		if identity, exists := c.Get("identity"); exists {
@@ -212,7 +212,7 @@ func handleExternalServiceToken(c *gin.Context, tokenParts []string) {
 }
 
 // handleUserIdentity handles standard user JWTs using real validation
-func handleUserIdentity(c *gin.Context, token string) {
+func handleUserIdentity(c *gin.Context, token string, jwtManager jwt.JWTManager) {
 	// Define how to lookup keys from the database by KID (Version)
 	lookup := func(keyID string) (*jwt.JWTKey, error) {
 		// 1. Positive cache: valid key already resolved
@@ -260,7 +260,7 @@ func handleUserIdentity(c *gin.Context, token string) {
 	}
 
 	// Validate the token
-	claims, err := jwt.ValidateAccessToken(token, lookup)
+	claims, err := jwtManager.ValidateAccessToken(token, lookup)
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			response.UnauthorizedResponse(c, nil, "Unauthorized: Token has expired")

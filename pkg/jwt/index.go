@@ -20,10 +20,6 @@ var (
 	ErrTokenExpired   = errors.New("token has expired")
 	ErrTokenInvalid   = errors.New("token is invalid")
 	ErrTokenMalformed = errors.New("token is malformed")
-
-	// keyCache stores already parsed RSA keys to avoid expensive re-parsing
-	// map[string]any where value is *rsa.PrivateKey or *rsa.PublicKey
-	keyCache sync.Map
 )
 
 // UserIdentity contains the core identity data for token generation
@@ -65,11 +61,32 @@ type JWTKey struct {
 	PublicKey []byte // Public Key PEM for RSA
 }
 
+// KeyLookupFunc is a callback to fetch a key by its ID (kid)
+type KeyLookupFunc func(keyID string) (*JWTKey, error)
+
+// JWTManager handles generation and validation of JWTs
+type JWTManager interface {
+	GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, error)
+	ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenClaims, error)
+}
+
+type jwtManager struct {
+	cfg *config.Config
+	// keyCache stores already parsed RSA keys to avoid expensive re-parsing
+	// map[string]any where value is *rsa.PrivateKey or *rsa.PublicKey
+	keyCache sync.Map
+}
+
+// NewJWTManager creates a new JWTManager with the given configuration
+func NewJWTManager(cfg *config.Config) JWTManager {
+	return &jwtManager{
+		cfg: cfg,
+	}
+}
+
 // GenerateAccessToken creates a new JWT access token.
 // If jwtKey is provided, it uses that key for signing; otherwise, it falls back to config.
-func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, error) {
-	cfg := config.GetConfig()
-
+func (m *jwtManager) GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, error) {
 	// Create claims with expiry and leeway for clock skew
 	claims := TokenClaims{
 		OrgID:   identity.OrgID,
@@ -79,18 +96,18 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   identity.UserID,
 			ID:        identity.SessionID,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(cfg.AccessTokenExpiryMinutes))),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(m.cfg.AccessTokenExpiryMinutes))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			// Set NotBefore to 1 minute in the past to handle slight clock skew
 			NotBefore: jwt.NewNumericDate(time.Now().Add(-1 * time.Minute)),
-			Issuer:    cfg.AppName,
+			Issuer:    m.cfg.AppName,
 		},
 	}
 
 	if identity.Audience != "" {
 		claims.Audience = jwt.ClaimStrings{identity.Audience}
-	} else if cfg.AppName != "" {
-		claims.Audience = jwt.ClaimStrings{cfg.AppName}
+	} else if m.cfg.AppName != "" {
+		claims.Audience = jwt.ClaimStrings{m.cfg.AppName}
 	}
 
 	var method jwt.SigningMethod
@@ -106,14 +123,14 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 			// Use cache for private key
 			hash := sha256.Sum256(k.KeyData)
 			cacheKey := "priv-" + hex.EncodeToString(hash[:])
-			if cached, ok := keyCache.Load(cacheKey); ok {
+			if cached, ok := m.keyCache.Load(cacheKey); ok {
 				key = cached
 			} else {
 				key, err = jwt.ParseRSAPrivateKeyFromPEM(k.KeyData)
 				if err != nil {
 					return "", fmt.Errorf("failed to parse private key: %w", err)
 				}
-				keyCache.Store(cacheKey, key)
+				m.keyCache.Store(cacheKey, key)
 			}
 		} else {
 			method = jwt.SigningMethodHS256
@@ -121,23 +138,23 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 		}
 	} else {
 		// Fallback to Config
-		if cfg.JWTSigningMethod == "RS256" {
+		if m.cfg.JWTSigningMethod == "RS256" {
 			method = jwt.SigningMethodRS256
-			pemData := []byte(cfg.JWTPrivateKey)
+			pemData := []byte(m.cfg.JWTPrivateKey)
 			hash := sha256.Sum256(pemData)
 			cacheKey := "priv-cfg-" + hex.EncodeToString(hash[:])
-			if cached, ok := keyCache.Load(cacheKey); ok {
+			if cached, ok := m.keyCache.Load(cacheKey); ok {
 				key = cached
 			} else {
 				key, err = jwt.ParseRSAPrivateKeyFromPEM(pemData)
 				if err != nil {
 					return "", fmt.Errorf("failed to parse private key from config: %w", err)
 				}
-				keyCache.Store(cacheKey, key)
+				m.keyCache.Store(cacheKey, key)
 			}
 		} else {
 			method = jwt.SigningMethodHS256
-			key = []byte(cfg.JWTSecret)
+			key = []byte(m.cfg.JWTSecret)
 		}
 	}
 
@@ -153,14 +170,9 @@ func GenerateAccessToken(identity UserIdentity, jwtKey ...*JWTKey) (string, erro
 	return tokenString, nil
 }
 
-// KeyLookupFunc is a callback to fetch a key by its ID (kid)
-type KeyLookupFunc func(keyID string) (*JWTKey, error)
-
 // ValidateAccessToken parses and validates a JWT token.
 // If lookup is provided, it uses it to find the key by kid; otherwise, it falls back to config.
-func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenClaims, error) {
-	cfg := config.GetConfig()
-
+func (m *jwtManager) ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenClaims, error) {
 	// Parse token
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (any, error) {
 		claims, ok := token.Claims.(*TokenClaims)
@@ -184,14 +196,14 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 				// Use cache for public key
 				hash := sha256.Sum256(k.PublicKey)
 				cacheKey := "pub-" + hex.EncodeToString(hash[:])
-				if cached, ok := keyCache.Load(cacheKey); ok {
+				if cached, ok := m.keyCache.Load(cacheKey); ok {
 					return cached, nil
 				}
 				pk, err := jwt.ParseRSAPublicKeyFromPEM(k.PublicKey)
 				if err != nil {
 					return nil, err
 				}
-				keyCache.Store(cacheKey, pk)
+				m.keyCache.Store(cacheKey, pk)
 				return pk, nil
 			}
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -201,22 +213,22 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 		}
 
 		// Fallback to Config
-		if cfg.JWTSigningMethod == "RS256" {
+		if m.cfg.JWTSigningMethod == "RS256" {
 			// Verify signing method
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			pemData := []byte(cfg.JWTPublicKey)
+			pemData := []byte(m.cfg.JWTPublicKey)
 			hash := sha256.Sum256(pemData)
 			cacheKey := "pub-cfg-" + hex.EncodeToString(hash[:])
-			if cached, ok := keyCache.Load(cacheKey); ok {
+			if cached, ok := m.keyCache.Load(cacheKey); ok {
 				return cached, nil
 			}
 			pk, err := jwt.ParseRSAPublicKeyFromPEM(pemData)
 			if err != nil {
 				return nil, err
 			}
-			keyCache.Store(cacheKey, pk)
+			m.keyCache.Store(cacheKey, pk)
 			return pk, nil
 		}
 
@@ -224,9 +236,8 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(cfg.JWTSecret), nil
+		return []byte(m.cfg.JWTSecret), nil
 	})
-
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
@@ -245,26 +256,24 @@ func ValidateAccessToken(tokenString string, lookup ...KeyLookupFunc) (*TokenCla
 	}
 
 	// Verify Audience
-	// If enforcement is enabled, strictly validate audience claims.
-	// Otherwise, log warnings but allow tokens without audience for backward compatibility.
-	if cfg.EnforceAudienceValidation {
+	if m.cfg.EnforceAudienceValidation {
 		// Strict mode: audience MUST match
 		if len(claims.Audience) > 0 {
-			if !slices.Contains(claims.Audience, cfg.AppName) {
-				return nil, fmt.Errorf("%w: audience mismatch: expected %s, got %v", ErrTokenInvalid, cfg.AppName, claims.Audience)
+			if !slices.Contains(claims.Audience, m.cfg.AppName) {
+				return nil, fmt.Errorf("%w: audience mismatch: expected %s, got %v", ErrTokenInvalid, m.cfg.AppName, claims.Audience)
 			}
-		} else if cfg.AppName != "" {
+		} else if m.cfg.AppName != "" {
 			// Strictly require audience if AppName is set in config
 			return nil, fmt.Errorf("%w: missing audience", ErrTokenInvalid)
 		}
 	} else {
 		// Permissive mode: log warnings but allow
 		if len(claims.Audience) > 0 {
-			if !slices.Contains(claims.Audience, cfg.AppName) {
+			if !slices.Contains(claims.Audience, m.cfg.AppName) {
 				// Log warning but don't reject
-				log.Warn(fmt.Sprintf("Token audience mismatch: expected %s, got %v. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.", cfg.AppName, claims.Audience))
+				log.Warn(fmt.Sprintf("Token audience mismatch: expected %s, got %v. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.", m.cfg.AppName, claims.Audience))
 			}
-		} else if cfg.AppName != "" {
+		} else if m.cfg.AppName != "" {
 			// Log warning for missing audience
 			log.Warn("Token missing audience claim. Set ENFORCE_AUDIENCE_VALIDATION=true to reject such tokens.")
 		}

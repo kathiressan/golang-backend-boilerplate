@@ -3,6 +3,7 @@ package services
 import (
 	"ovmsa-be/internal/services/auth"
 	"ovmsa-be/internal/services/org"
+	"ovmsa-be/pkg/jwt"
 
 	"gorm.io/gorm"
 )
@@ -14,9 +15,9 @@ type Services struct {
 }
 
 // InitServices initializes all application services
-func InitServices(db *gorm.DB) *Services {
+func InitServices(db *gorm.DB, jwtManager jwt.JWTManager) *Services {
 	return &Services{
-		Auth:         auth.NewAuthService(db),
+		Auth:         auth.NewAuthService(db, jwtManager),
 		Organization: org.NewOrganizationService(db),
 	}
 }

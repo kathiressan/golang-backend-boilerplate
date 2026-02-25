@@ -13,6 +13,7 @@ import (
 	"ovmsa-be/internal/services"
 	"ovmsa-be/internal/swagger"
 	"ovmsa-be/pkg/database"
+	"ovmsa-be/pkg/jwt"
 	"ovmsa-be/pkg/logger"
 	validatorHelper "ovmsa-be/pkg/validator"
 	"syscall"
@@ -64,8 +65,11 @@ func main() {
 	repository.Initialize(db)
 	logger.Info("Repositories initialized successfully")
 
+	// Initialize JWT Manager
+	jwtManager := jwt.NewJWTManager(cfg)
+
 	// Initialize Services
-	svc := services.InitServices(db)
+	svc := services.InitServices(db, jwtManager)
 	logger.Info("Services initialized successfully")
 
 	logger.Debug("Starting application",
@@ -84,7 +88,7 @@ func main() {
 	validatorHelper.InitValidator()
 
 	// Setup application middleware
-	middleware.SetupMiddleware(router)
+	middleware.SetupMiddleware(router, jwtManager)
 
 	// Register all API routes
 	api.ApiHandler(router, svc)

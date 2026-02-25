@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"ovmsa-be/pkg/jwt"
+
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 )
 
 // SetupMiddleware configures all middleware for the application
-func SetupMiddleware(router *gin.Engine) {
+func SetupMiddleware(router *gin.Engine, jwtManager jwt.JWTManager) {
 	// Generate unique request IDs for each request
 	// This helps track requests through the system
 	router.Use(requestid.New())
@@ -32,5 +34,5 @@ func SetupMiddleware(router *gin.Engine) {
 	router.Use(Error404n500Handler())
 
 	// Add Identity context extractor for Enterprise B2B multi-tenancy
-	router.Use(AuthMiddleware())
+	router.Use(AuthMiddleware(jwtManager))
 }

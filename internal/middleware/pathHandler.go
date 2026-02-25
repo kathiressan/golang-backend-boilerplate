@@ -16,11 +16,11 @@ import (
 // - Access control
 // - Logging
 // - Metrics collection
-func PathHandler() gin.HandlerFunc {
+func PathHandler(parser pathHelper.PathParser) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse the request path using the path helper
 		// This normalizes the path and handles any special cases
-		parsedPath := pathHelper.ParseRequestPath(c.Request.URL.Path)
+		parsedPath := parser.ParseRequestPath(c.Request.URL.Path)
 
 		// Store the parsed path in the request context
 		// This makes it available to all subsequent handlers in the chain
