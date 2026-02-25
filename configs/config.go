@@ -34,17 +34,17 @@ type Config struct {
 	IdleTimeoutSeconds  int
 
 	// Security settings
-	JWTSigningMethod         string
-	JWTSecret                string
-	JWTPrivateKey            string
-	JWTPublicKey             string
-	AccessTokenExpiryMinutes int
-	RefreshTokenExpiryDays   int
-	EnforceAudienceValidation bool
-	RateLimitEnabled          bool
+	JWTSigningMethod           string
+	JWTSecret                  string
+	JWTPrivateKey              string
+	JWTPublicKey               string
+	AccessTokenExpiryMinutes   int
+	RefreshTokenExpiryDays     int
+	EnforceAudienceValidation  bool
+	RateLimitEnabled           bool
 	RateLimitRequestsPerMinute int
-	TrustedProxies           []string
-	AllowedOrigins           []string
+	TrustedProxies             []string
+	AllowedOrigins             []string
 
 	// Database settings
 	DBHost      string
@@ -167,7 +167,7 @@ func loadConfig() (*Config, error) {
 			return nil, fmt.Errorf("JWT_SECRET must be set in production for HS256")
 		}
 		if jwtSecret == "" {
-			jwtSecret = "default-jwt-secret-for-dev-only"
+			return nil, fmt.Errorf("JWT_SECRET must be set")
 		}
 	}
 
