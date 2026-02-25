@@ -14,6 +14,11 @@ func EnforceRBAC(c *gin.Context, identity *entities.Identity, config *entities.R
 		return true // No restrictions if config is empty
 	}
 
+	// Root users bypass all RBAC checks
+	if identity.IsRoot {
+		return true
+	}
+
 	// Check if user's role matches any allowed role
 	return slices.Contains(config.AllowedRoles, identity.Role)
 }
@@ -22,6 +27,11 @@ func EnforceRBAC(c *gin.Context, identity *entities.Identity, config *entities.R
 func EnforceABAC(c *gin.Context, identity *entities.Identity, config *entities.ABACConfig) bool {
 	if config == nil || len(config.RequiredAttributes) == 0 {
 		return true // No restrictions if config is empty
+	}
+
+	// Root users bypass all ABAC checks
+	if identity.IsRoot {
+		return true
 	}
 
 	// Check each required attribute
