@@ -62,7 +62,7 @@ func GetDB() *gorm.DB {
 // The RLSPlugin will read this identity and set Postgres session variables.
 func ScopedDB(db *gorm.DB, id *entities.Identity) *gorm.DB {
 	if id != nil {
-		ctx := context.WithValue(db.Statement.Context, "identity", id)
+		ctx := context.WithValue(db.Statement.Context, entities.IdentityCtxKey, id)
 		return db.WithContext(ctx)
 	}
 	return db
